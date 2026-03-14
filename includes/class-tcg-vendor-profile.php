@@ -17,7 +17,6 @@ class TCG_Vendor_Profile {
 			'_tcg_shop_name'        => 'string',
 			'_tcg_shop_slug'        => 'string',
 			'_tcg_shop_description' => 'string',
-			'_tcg_shop_logo_id'     => 'integer',
 			'_tcg_payment_info'     => 'string',
 			'_tcg_commission_rate'  => 'string',
 		];

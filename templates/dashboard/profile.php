@@ -15,17 +15,6 @@ if ( isset( $_POST['tcg_save_profile'] ) && wp_verify_nonce( $_POST['_wpnonce'] 
 	update_user_meta( $vendor_id, '_tcg_shop_description', $shop_desc );
 	update_user_meta( $vendor_id, '_tcg_payment_info', $payment );
 
-	// Handle logo upload.
-	if ( ! empty( $_FILES['shop_logo']['name'] ) ) {
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/media.php';
-		$attach_id = media_handle_upload( 'shop_logo', 0 );
-		if ( ! is_wp_error( $attach_id ) ) {
-			update_user_meta( $vendor_id, '_tcg_shop_logo_id', $attach_id );
-		}
-	}
-
 	wp_safe_redirect( add_query_arg( 'tcg_msg', 'profile_saved', TCG_Dashboard::get_dashboard_url( 'profile' ) ) );
 	exit;
 }
@@ -33,13 +22,11 @@ if ( isset( $_POST['tcg_save_profile'] ) && wp_verify_nonce( $_POST['_wpnonce'] 
 $shop_name = get_user_meta( $vendor_id, '_tcg_shop_name', true );
 $shop_desc = get_user_meta( $vendor_id, '_tcg_shop_description', true );
 $payment   = get_user_meta( $vendor_id, '_tcg_payment_info', true );
-$logo_id   = get_user_meta( $vendor_id, '_tcg_shop_logo_id', true );
-$logo_url  = $logo_id ? wp_get_attachment_image_url( $logo_id, 'thumbnail' ) : '';
 ?>
 
 <h2><?php esc_html_e( 'Mi Perfil', 'tcg-manager' ); ?></h2>
 
-<form method="post" enctype="multipart/form-data" class="tcg-product-form">
+<form method="post" class="tcg-product-form">
 	<?php wp_nonce_field( 'tcg_profile_save' ); ?>
 
 	<div class="tcg-form-group">
@@ -55,18 +42,6 @@ $logo_url  = $logo_id ? wp_get_attachment_image_url( $logo_id, 'thumbnail' ) : '
 			<?php esc_html_e( 'Descripción', 'tcg-manager' ); ?>
 		</label>
 		<textarea name="shop_description" id="tcg-shop-desc" class="tcg-form-control" rows="4"><?php echo esc_textarea( $shop_desc ); ?></textarea>
-	</div>
-
-	<div class="tcg-form-group">
-		<label for="tcg-shop-logo" class="tcg-form-label">
-			<?php esc_html_e( 'Logo de tienda', 'tcg-manager' ); ?>
-		</label>
-		<?php if ( $logo_url ) : ?>
-			<div style="margin-bottom:8px;">
-				<img src="<?php echo esc_url( $logo_url ); ?>" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;">
-			</div>
-		<?php endif; ?>
-		<input type="file" name="shop_logo" id="tcg-shop-logo" accept="image/*">
 	</div>
 
 	<div class="tcg-form-group">

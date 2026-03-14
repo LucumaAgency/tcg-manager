@@ -9,8 +9,16 @@ if ( ! $vendor ) {
 $vendor_id = $vendor->ID;
 $shop_name = TCG_Vendor_Profile::get_shop_name( $vendor_id );
 $shop_desc = get_user_meta( $vendor_id, '_tcg_shop_description', true );
-$logo_id   = get_user_meta( $vendor_id, '_tcg_shop_logo_id', true );
-$logo_url  = $logo_id ? wp_get_attachment_image_url( $logo_id, 'medium' ) : '';
+
+// Get total sales count.
+global $wpdb;
+$total_sales = (int) $wpdb->get_var( $wpdb->prepare(
+	"SELECT COALESCE(SUM(pm.meta_value), 0)
+	 FROM {$wpdb->posts} p
+	 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = 'total_sales'
+	 WHERE p.post_type = 'product' AND p.post_status = 'publish' AND p.post_author = %d",
+	$vendor_id
+) );
 
 // Get vendor products.
 $paged = max( 1, absint( $_GET['paged'] ?? 1 ) );
@@ -28,9 +36,6 @@ get_header();
 
 <div class="tcg-store-page">
 	<div class="tcg-store-header">
-		<?php if ( $logo_url ) : ?>
-			<img src="<?php echo esc_url( $logo_url ); ?>" alt="<?php echo esc_attr( $shop_name ); ?>" class="tcg-store-logo">
-		<?php endif; ?>
 		<div class="tcg-store-info">
 			<h1 class="tcg-store-name"><?php echo esc_html( $shop_name ); ?></h1>
 			<?php if ( $shop_desc ) : ?>
@@ -38,6 +43,8 @@ get_header();
 			<?php endif; ?>
 			<p class="tcg-store-meta">
 				<?php printf( esc_html__( '%d productos', 'tcg-manager' ), $query->found_posts ); ?>
+				&middot;
+				<?php printf( esc_html__( '%d ventas', 'tcg-manager' ), $total_sales ); ?>
 			</p>
 		</div>
 	</div>
