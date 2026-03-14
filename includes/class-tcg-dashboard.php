@@ -11,7 +11,7 @@ class TCG_Dashboard {
 	public function __construct() {
 		add_shortcode( 'tcg_dashboard', [ $this, 'render' ] );
 		add_shortcode( 'tcg_register', [ $this, 'render_register' ] );
-		add_action( 'init', [ $this, 'add_rewrite_rules' ], 30 );
+		$this->add_rewrite_rules(); // Run immediately — we're already in init.
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'process_registration' ] );
 		add_action( 'template_redirect', [ $this, 'process_login' ] );

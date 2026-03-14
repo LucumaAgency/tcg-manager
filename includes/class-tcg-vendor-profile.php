@@ -4,9 +4,10 @@ defined( 'ABSPATH' ) || exit;
 class TCG_Vendor_Profile {
 
 	public function __construct() {
-		add_action( 'init', [ $this, 'register_meta' ] );
-		add_action( 'init', [ $this, 'add_rewrite_rules' ] );
-		add_action( 'init', [ $this, 'maybe_flush_rewrites' ] );
+		// These run immediately since we're already past early init.
+		$this->register_meta();
+		$this->add_rewrite_rules();
+		$this->maybe_flush_rewrites();
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'handle_store_page' ] );
 	}
