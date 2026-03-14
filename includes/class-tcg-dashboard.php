@@ -10,8 +10,10 @@ class TCG_Dashboard {
 
 	public function __construct() {
 		add_shortcode( 'tcg_dashboard', [ $this, 'render' ] );
+		add_shortcode( 'tcg_register', [ $this, 'render_register' ] );
 		add_action( 'init', [ $this, 'add_rewrite_endpoints' ] );
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
+		add_action( 'template_redirect', [ $this, 'process_registration' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
 
@@ -218,5 +220,68 @@ class TCG_Dashboard {
 				'confirmDelete' => __( '¿Seguro que quieres eliminar este producto?', 'tcg-manager' ),
 			],
 		] );
+	}
+
+	/**
+	 * Render vendor registration shortcode.
+	 */
+	public function render_register() {
+		// Enqueue dashboard CSS for form styles.
+		wp_enqueue_style( 'tcg-dashboard', TCG_MANAGER_URL . 'assets/css/dashboard.css', [], TCG_MANAGER_VERSION );
+
+		ob_start();
+		$template = locate_template( 'tcg-manager/auth/registration.php' );
+		if ( ! $template ) {
+			$template = TCG_MANAGER_PATH . 'templates/auth/registration.php';
+		}
+		if ( file_exists( $template ) ) {
+			include $template;
+		}
+		return ob_get_clean();
+	}
+
+	/**
+	 * Process vendor registration form before headers are sent.
+	 */
+	public function process_registration() {
+		if ( ! isset( $_POST['tcg_register_vendor'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_vendor_register' ) ) {
+			return;
+		}
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		$username  = sanitize_user( $_POST['username'] ?? '' );
+		$email     = sanitize_email( $_POST['email'] ?? '' );
+		$password  = $_POST['password'] ?? '';
+		$shop_name = sanitize_text_field( $_POST['shop_name'] ?? '' );
+
+		// Validate.
+		if ( ! $username || ! $email || ! $password || ! $shop_name ) {
+			return;
+		}
+		if ( strlen( $password ) < 6 || username_exists( $username ) || email_exists( $email ) ) {
+			return;
+		}
+
+		$user_id = wp_create_user( $username, $password, $email );
+		if ( is_wp_error( $user_id ) ) {
+			return;
+		}
+
+		$user = new WP_User( $user_id );
+		$user->set_role( 'tcg_vendor' );
+
+		update_user_meta( $user_id, '_tcg_shop_name', $shop_name );
+		update_user_meta( $user_id, '_tcg_shop_slug', sanitize_title( $shop_name ) );
+
+		wp_set_current_user( $user_id );
+		wp_set_auth_cookie( $user_id );
+
+		wp_safe_redirect( self::get_dashboard_url() );
+		exit;
 	}
 }

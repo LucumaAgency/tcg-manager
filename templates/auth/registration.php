@@ -1,10 +1,13 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 
-// Handle registration form.
-$errors = [];
-$success = false;
+if ( is_user_logged_in() ) {
+	echo '<div class="tcg-alert tcg-alert-error">' . esc_html__( 'Ya tienes una cuenta.', 'tcg-manager' ) . '</div>';
+	return;
+}
 
+// Collect validation errors for display (form was NOT processed by template_redirect if we're still here).
+$errors = [];
 if ( isset( $_POST['tcg_register_vendor'] ) && wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_vendor_register' ) ) {
 	$username  = sanitize_user( $_POST['username'] ?? '' );
 	$email     = sanitize_email( $_POST['email'] ?? '' );
@@ -15,40 +18,9 @@ if ( isset( $_POST['tcg_register_vendor'] ) && wp_verify_nonce( $_POST['_wpnonce
 	if ( ! $email )    $errors[] = __( 'El email es obligatorio.', 'tcg-manager' );
 	if ( ! $password ) $errors[] = __( 'La contraseña es obligatoria.', 'tcg-manager' );
 	if ( ! $shop_name ) $errors[] = __( 'El nombre de tienda es obligatorio.', 'tcg-manager' );
-	if ( strlen( $password ) < 6 ) $errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
-	if ( username_exists( $username ) ) $errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
-	if ( email_exists( $email ) ) $errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
-
-	if ( empty( $errors ) ) {
-		$user_id = wp_create_user( $username, $password, $email );
-
-		if ( is_wp_error( $user_id ) ) {
-			$errors[] = $user_id->get_error_message();
-		} else {
-			// Set vendor role.
-			$user = new WP_User( $user_id );
-			$user->set_role( 'tcg_vendor' );
-
-			// Save shop meta.
-			update_user_meta( $user_id, '_tcg_shop_name', $shop_name );
-			update_user_meta( $user_id, '_tcg_shop_slug', sanitize_title( $shop_name ) );
-
-			// Auto-login.
-			wp_set_current_user( $user_id );
-			wp_set_auth_cookie( $user_id );
-
-			$success = true;
-
-			// Redirect to dashboard.
-			wp_safe_redirect( TCG_Dashboard::get_dashboard_url() );
-			exit;
-		}
-	}
-}
-
-if ( is_user_logged_in() ) {
-	echo '<div class="tcg-alert tcg-alert-error">' . esc_html__( 'Ya tienes una cuenta.', 'tcg-manager' ) . '</div>';
-	return;
+	if ( $password && strlen( $password ) < 6 ) $errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
+	if ( $username && username_exists( $username ) ) $errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
+	if ( $email && email_exists( $email ) ) $errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
 }
 ?>
 
