@@ -11,26 +11,34 @@ class TCG_Dashboard {
 	public function __construct() {
 		add_shortcode( 'tcg_dashboard', [ $this, 'render' ] );
 		add_shortcode( 'tcg_register', [ $this, 'render_register' ] );
-		add_action( 'init', [ $this, 'add_rewrite_endpoints' ] );
+		add_action( 'init', [ $this, 'add_rewrite_rules' ], 30 );
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'process_registration' ] );
+		add_action( 'template_redirect', [ $this, 'process_login' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
 
-	public function add_rewrite_endpoints() {
-		$page_id = self::get_dashboard_page_id();
+	/**
+	 * Add rewrite rules for clean dashboard URLs.
+	 */
+	public function add_rewrite_rules() {
+		$page_id = (int) get_option( 'tcg_dashboard_page_id', 0 );
 		if ( ! $page_id ) {
 			return;
 		}
 
-		$page_slug = get_page_uri( $page_id );
-		if ( ! $page_slug ) {
+		$page = get_post( $page_id );
+		if ( ! $page || $page->post_status !== 'publish' ) {
 			return;
 		}
 
-		// Match /dashboard/SECTION/
+		$slug = get_page_uri( $page_id );
+		if ( ! $slug ) {
+			return;
+		}
+
 		add_rewrite_rule(
-			'^' . preg_quote( $page_slug, '/' ) . '/([^/]+)/?$',
+			'^' . preg_quote( $slug, '/' ) . '/([^/]+)/?$',
 			'index.php?page_id=' . $page_id . '&tcg-section=$matches[1]',
 			'top'
 		);
@@ -46,7 +54,18 @@ class TCG_Dashboard {
 	 * Get current dashboard section.
 	 */
 	public static function get_current_section() {
-		$section = get_query_var( 'tcg-section', 'home' );
+		// Try query var first (works with rewrite rules).
+		$section = get_query_var( 'tcg-section', '' );
+
+		// Fallback: check $_GET param.
+		if ( ! $section && isset( $_GET['tcg-section'] ) ) {
+			$section = sanitize_text_field( $_GET['tcg-section'] );
+		}
+
+		if ( ! $section ) {
+			$section = 'home';
+		}
+
 		return in_array( $section, self::$sections, true ) ? $section : 'home';
 	}
 
@@ -58,6 +77,7 @@ class TCG_Dashboard {
 		$url     = $page_id ? get_permalink( $page_id ) : home_url( '/dashboard/' );
 
 		if ( $section && $section !== 'home' ) {
+			// Use clean URL path (works with rewrite rules).
 			$url = trailingslashit( $url ) . $section . '/';
 		}
 
@@ -69,15 +89,12 @@ class TCG_Dashboard {
 	}
 
 	/**
-	 * Find the page with [tcg_dashboard] shortcode.
+	 * Get dashboard page ID from option (set on first render).
 	 */
-	private static function get_dashboard_page_id() {
+	public static function get_dashboard_page_id() {
 		static $page_id = null;
 		if ( $page_id === null ) {
-			global $wpdb;
-			$page_id = (int) $wpdb->get_var(
-				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE '%[tcg_dashboard]%' LIMIT 1"
-			);
+			$page_id = (int) get_option( 'tcg_dashboard_page_id', 0 );
 		}
 		return $page_id;
 	}
@@ -94,6 +111,14 @@ class TCG_Dashboard {
 	 * Render the dashboard shortcode.
 	 */
 	public function render() {
+		// Auto-detect and save the dashboard page ID on first render.
+		$current_id = get_the_ID();
+		$saved_id   = (int) get_option( 'tcg_dashboard_page_id', 0 );
+		if ( $current_id && $current_id !== $saved_id ) {
+			update_option( 'tcg_dashboard_page_id', $current_id, true );
+			update_option( 'tcg_manager_flush_rewrite', 1 );
+		}
+
 		if ( ! is_user_logged_in() ) {
 			return '<div class="tcg-alert tcg-alert-error">'
 				. esc_html__( 'Debes iniciar sesión para acceder al dashboard.', 'tcg-manager' )
@@ -183,14 +208,12 @@ class TCG_Dashboard {
 	 * Load a dashboard template.
 	 */
 	private function load_template( $section ) {
-		// Map sections to template files.
 		$map = [
 			'new-product'  => 'product-form',
 			'edit-product' => 'product-form',
 		];
 		$file = isset( $map[ $section ] ) ? $map[ $section ] : $section;
 
-		// Allow theme override.
 		$template = locate_template( 'tcg-manager/dashboard/' . $file . '.php' );
 		if ( ! $template ) {
 			$template = TCG_MANAGER_PATH . 'templates/dashboard/' . $file . '.php';
@@ -238,25 +261,162 @@ class TCG_Dashboard {
 	}
 
 	/**
-	 * Render vendor registration shortcode.
+	 * Render auth shortcode: login + register tabs.
 	 */
 	public function render_register() {
-		// Enqueue dashboard CSS for form styles.
 		wp_enqueue_style( 'tcg-dashboard', TCG_MANAGER_URL . 'assets/css/dashboard.css', [], TCG_MANAGER_VERSION );
 
+		if ( is_user_logged_in() ) {
+			if ( TCG_Vendor_Role::is_vendor() ) {
+				return '<div class="tcg-alert tcg-alert-success">'
+					. esc_html__( 'Ya tienes una cuenta de vendedor.', 'tcg-manager' )
+					. ' <a href="' . esc_url( self::get_dashboard_url() ) . '">'
+					. esc_html__( 'Ir al dashboard', 'tcg-manager' ) . '</a></div>';
+			}
+			return '<div class="tcg-alert tcg-alert-error">'
+				. esc_html__( 'Ya tienes una cuenta.', 'tcg-manager' ) . '</div>';
+		}
+
+		$active_tab = isset( $_GET['tab'] ) && $_GET['tab'] === 'register' ? 'register' : 'login';
+
+		// Collect registration errors.
+		$reg_errors = [];
+		if ( isset( $_POST['tcg_register_vendor'] ) && wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_vendor_register' ) ) {
+			$active_tab = 'register';
+			$username  = sanitize_user( $_POST['username'] ?? '' );
+			$email     = sanitize_email( $_POST['email'] ?? '' );
+			$password  = $_POST['password'] ?? '';
+			$shop_name = sanitize_text_field( $_POST['shop_name'] ?? '' );
+
+			if ( ! $username ) $reg_errors[] = __( 'El nombre de usuario es obligatorio.', 'tcg-manager' );
+			if ( ! $email )    $reg_errors[] = __( 'El email es obligatorio.', 'tcg-manager' );
+			if ( ! $password ) $reg_errors[] = __( 'La contraseña es obligatoria.', 'tcg-manager' );
+			if ( ! $shop_name ) $reg_errors[] = __( 'El nombre de tienda es obligatorio.', 'tcg-manager' );
+			if ( $password && strlen( $password ) < 6 ) $reg_errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
+			if ( $username && username_exists( $username ) ) $reg_errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
+			if ( $email && email_exists( $email ) ) $reg_errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
+		}
+
+		// Login error.
+		$login_error = '';
+		if ( isset( $_GET['tcg_login_error'] ) ) {
+			$login_error = __( 'Usuario o contraseña incorrectos.', 'tcg-manager' );
+		}
+
 		ob_start();
-		$template = locate_template( 'tcg-manager/auth/registration.php' );
-		if ( ! $template ) {
-			$template = TCG_MANAGER_PATH . 'templates/auth/registration.php';
-		}
-		if ( file_exists( $template ) ) {
-			include $template;
-		}
+		?>
+		<div class="tcg-auth-wrap">
+			<div class="tcg-auth-tabs">
+				<a href="<?php echo esc_url( remove_query_arg( 'tab' ) ); ?>"
+				   class="tcg-auth-tab <?php echo $active_tab === 'login' ? 'active' : ''; ?>">
+					<?php esc_html_e( 'Iniciar sesión', 'tcg-manager' ); ?>
+				</a>
+				<a href="<?php echo esc_url( add_query_arg( 'tab', 'register' ) ); ?>"
+				   class="tcg-auth-tab <?php echo $active_tab === 'register' ? 'active' : ''; ?>">
+					<?php esc_html_e( 'Registrarse', 'tcg-manager' ); ?>
+				</a>
+			</div>
+
+			<?php if ( $active_tab === 'login' ) : ?>
+				<!-- Login form -->
+				<div class="tcg-auth-panel">
+					<?php if ( $login_error ) : ?>
+						<div class="tcg-alert tcg-alert-error"><?php echo esc_html( $login_error ); ?></div>
+					<?php endif; ?>
+
+					<form method="post" class="tcg-product-form">
+						<?php wp_nonce_field( 'tcg_vendor_login' ); ?>
+						<input type="hidden" name="tcg_login_vendor" value="1">
+
+						<div class="tcg-form-group">
+							<label for="tcg-login-user" class="tcg-form-label">
+								<?php esc_html_e( 'Usuario o email', 'tcg-manager' ); ?>
+							</label>
+							<input type="text" name="log" id="tcg-login-user" class="tcg-form-control" required
+								   value="<?php echo esc_attr( $_POST['log'] ?? '' ); ?>">
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-login-pass" class="tcg-form-label">
+								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?>
+							</label>
+							<input type="password" name="pwd" id="tcg-login-pass" class="tcg-form-control" required>
+						</div>
+
+						<div class="tcg-form-actions">
+							<button type="submit" class="tcg-btn tcg-btn-primary" style="width:100%;">
+								<?php esc_html_e( 'Entrar', 'tcg-manager' ); ?>
+							</button>
+						</div>
+
+						<p style="margin-top:12px;text-align:center;font-size:13px;">
+							<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>">
+								<?php esc_html_e( '¿Olvidaste tu contraseña?', 'tcg-manager' ); ?>
+							</a>
+						</p>
+					</form>
+				</div>
+
+			<?php else : ?>
+				<!-- Register form -->
+				<div class="tcg-auth-panel">
+					<?php if ( ! empty( $reg_errors ) ) : ?>
+						<div class="tcg-alert tcg-alert-error">
+							<?php foreach ( $reg_errors as $error ) : ?>
+								<p style="margin:0 0 4px;"><?php echo esc_html( $error ); ?></p>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+
+					<form method="post" class="tcg-product-form">
+						<?php wp_nonce_field( 'tcg_vendor_register' ); ?>
+
+						<div class="tcg-form-group">
+							<label for="tcg-reg-username" class="tcg-form-label">
+								<?php esc_html_e( 'Nombre de usuario', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="text" name="username" id="tcg-reg-username" class="tcg-form-control"
+								   value="<?php echo esc_attr( $_POST['username'] ?? '' ); ?>" required>
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-reg-email" class="tcg-form-label">
+								<?php esc_html_e( 'Email', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="email" name="email" id="tcg-reg-email" class="tcg-form-control"
+								   value="<?php echo esc_attr( $_POST['email'] ?? '' ); ?>" required>
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-reg-password" class="tcg-form-label">
+								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="password" name="password" id="tcg-reg-password" class="tcg-form-control" required minlength="6">
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-reg-shop" class="tcg-form-label">
+								<?php esc_html_e( 'Nombre de tu tienda', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="text" name="shop_name" id="tcg-reg-shop" class="tcg-form-control"
+								   value="<?php echo esc_attr( $_POST['shop_name'] ?? '' ); ?>" required>
+						</div>
+
+						<div class="tcg-form-actions">
+							<button type="submit" name="tcg_register_vendor" value="1" class="tcg-btn tcg-btn-primary" style="width:100%;">
+								<?php esc_html_e( 'Crear cuenta', 'tcg-manager' ); ?>
+							</button>
+						</div>
+					</form>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
 		return ob_get_clean();
 	}
 
 	/**
-	 * Process vendor registration form before headers are sent.
+	 * Process vendor registration before output.
 	 */
 	public function process_registration() {
 		if ( ! isset( $_POST['tcg_register_vendor'] ) ) {
@@ -274,9 +434,8 @@ class TCG_Dashboard {
 		$password  = $_POST['password'] ?? '';
 		$shop_name = sanitize_text_field( $_POST['shop_name'] ?? '' );
 
-		// Validate.
 		if ( ! $username || ! $email || ! $password || ! $shop_name ) {
-			return;
+			return; // Let the template show errors.
 		}
 		if ( strlen( $password ) < 6 || username_exists( $username ) || email_exists( $email ) ) {
 			return;
@@ -295,6 +454,37 @@ class TCG_Dashboard {
 
 		wp_set_current_user( $user_id );
 		wp_set_auth_cookie( $user_id );
+
+		wp_safe_redirect( self::get_dashboard_url() );
+		exit;
+	}
+
+	/**
+	 * Process vendor login before output.
+	 */
+	public function process_login() {
+		if ( ! isset( $_POST['tcg_login_vendor'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_vendor_login' ) ) {
+			return;
+		}
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		$creds = [
+			'user_login'    => sanitize_text_field( $_POST['log'] ?? '' ),
+			'user_password' => $_POST['pwd'] ?? '',
+			'remember'      => true,
+		];
+
+		$user = wp_signon( $creds, is_ssl() );
+
+		if ( is_wp_error( $user ) ) {
+			wp_safe_redirect( add_query_arg( 'tcg_login_error', '1', wp_get_referer() ?: home_url() ) );
+			exit;
+		}
 
 		wp_safe_redirect( self::get_dashboard_url() );
 		exit;
