@@ -289,6 +289,26 @@ function tcg_manager_get_settings_class() {
 					'type' => 'sectionend',
 					'id'   => 'tcg_commission_options',
 				],
+				[
+					'title' => __( 'Páginas', 'tcg-manager' ),
+					'type'  => 'title',
+					'desc'  => __( 'Configura qué páginas usa el plugin.', 'tcg-manager' ),
+					'id'    => 'tcg_pages_options',
+				],
+				[
+					'title'    => __( 'Página de tienda de vendedor', 'tcg-manager' ),
+					'desc'     => __( 'Página con la plantilla Bricks para la tienda del vendedor. Usa los shortcodes [tcg_vendor_name], [tcg_vendor_products_grid], etc.', 'tcg-manager' ),
+					'id'       => 'tcg_store_page_id',
+					'type'     => 'single_select_page',
+					'default'  => '',
+					'css'      => 'min-width:300px;',
+					'class'    => 'wc-enhanced-select',
+					'desc_tip' => true,
+				],
+				[
+					'type' => 'sectionend',
+					'id'   => 'tcg_pages_options',
+				],
 			];
 		}
 	}
