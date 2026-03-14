@@ -18,7 +18,22 @@ class TCG_Dashboard {
 	}
 
 	public function add_rewrite_endpoints() {
-		add_rewrite_endpoint( 'tcg-section', EP_PAGES );
+		$page_id = self::get_dashboard_page_id();
+		if ( ! $page_id ) {
+			return;
+		}
+
+		$page_slug = get_page_uri( $page_id );
+		if ( ! $page_slug ) {
+			return;
+		}
+
+		// Match /dashboard/SECTION/
+		add_rewrite_rule(
+			'^' . preg_quote( $page_slug, '/' ) . '/([^/]+)/?$',
+			'index.php?page_id=' . $page_id . '&tcg-section=$matches[1]',
+			'top'
+		);
 	}
 
 	public function add_query_vars( $vars ) {

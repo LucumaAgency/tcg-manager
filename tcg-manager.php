@@ -2,7 +2,7 @@
 /**
  * Plugin Name: TCG Manager
  * Description: Marketplace de cartas YGO — vendors crean productos WooCommerce vinculados al catálogo de cartas.
- * Version:     1.0.2
+ * Version:     1.0.3
  * Author:      Lucuma Agency
  * Requires Plugins: woocommerce
  * Text Domain: tcg-manager
@@ -10,7 +10,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TCG_MANAGER_VERSION', '1.0.2' );
+define( 'TCG_MANAGER_VERSION', '1.0.3' );
 define( 'TCG_MANAGER_PATH', plugin_dir_path( __FILE__ ) );
 define( 'TCG_MANAGER_URL', plugin_dir_url( __FILE__ ) );
 
@@ -43,6 +43,12 @@ function tcg_manager_check_plugins() {
 
 	add_action( 'init', 'tcg_manager_boot', 25 );
 	add_action( 'admin_init', 'tcg_manager_maybe_add_title_index' );
+
+	// Flush rewrite rules on version change.
+	if ( get_option( 'tcg_manager_version' ) !== TCG_MANAGER_VERSION ) {
+		update_option( 'tcg_manager_flush_rewrite', 1 );
+		update_option( 'tcg_manager_version', TCG_MANAGER_VERSION );
+	}
 }
 add_action( 'plugins_loaded', 'tcg_manager_check_plugins', 20 );
 
