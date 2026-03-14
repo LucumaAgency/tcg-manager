@@ -56,10 +56,31 @@ class TCG_Listings {
 	}
 
 	public function render_shortcode_add_to_cart_btn( $atts ) {
-		$atts    = shortcode_atts( [ 'label' => __( 'Agregar al carrito', 'tcg-manager' ) ], $atts );
-		$card_id = get_the_ID();
-		if ( ! $card_id || get_post_type( $card_id ) !== 'ygo_card' ) return '';
-		$listings = $this->get_ranked_listings_for( $card_id );
+		$atts = shortcode_atts( [
+			'label'      => __( 'Agregar al carrito', 'tcg-manager' ),
+			'product_id' => '',
+		], $atts );
+
+		$post_id   = get_the_ID();
+		$post_type = $post_id ? get_post_type( $post_id ) : '';
+
+		// Context 1: Inside a product loop (vendor store page) — use the product directly.
+		if ( $post_type === 'product' || ! empty( $atts['product_id'] ) ) {
+			$product_id = ! empty( $atts['product_id'] ) ? absint( $atts['product_id'] ) : $post_id;
+			$product    = wc_get_product( $product_id );
+			if ( ! $product || ! $product->is_in_stock() ) {
+				return '<button type="button" class="tcg-add-to-cart button alt" disabled>' . esc_html__( 'No disponible', 'tcg-manager' ) . '</button>';
+			}
+			$nonce = wp_create_nonce( 'tcg_listings_nonce' );
+			$this->enqueue_listings_js();
+			return '<button type="button" class="tcg-add-to-cart button alt" data-product-id="' . esc_attr( $product_id ) . '" data-nonce="' . esc_attr( $nonce ) . '">' . esc_html( $atts['label'] ) . '</button>';
+		}
+
+		// Context 2: On a ygo_card page — find the best listing.
+		if ( $post_type !== 'ygo_card' ) {
+			return '';
+		}
+		$listings = $this->get_ranked_listings_for( $post_id );
 		if ( empty( $listings ) ) {
 			return '<button type="button" class="tcg-add-to-cart button alt" disabled>' . esc_html__( 'No disponible', 'tcg-manager' ) . '</button>';
 		}
@@ -235,12 +256,14 @@ class TCG_Listings {
 	/* ─── Assets ─── */
 
 	public function enqueue_assets() {
-		$is_ygo = is_singular( 'ygo_card' ) || is_post_type_archive( 'ygo_card' ) || is_tax( 'ygo_set' ) || is_tax( 'ygo_archetype' ) || is_tax( 'ygo_card_type' ) || is_tax( 'ygo_attribute' ) || is_tax( 'ygo_race' );
-		if ( ! $is_ygo ) return;
+		$is_ygo    = is_singular( 'ygo_card' ) || is_post_type_archive( 'ygo_card' ) || is_tax( 'ygo_set' ) || is_tax( 'ygo_archetype' ) || is_tax( 'ygo_card_type' ) || is_tax( 'ygo_attribute' ) || is_tax( 'ygo_race' );
+		$is_vendor = ! empty( $GLOBALS['tcg_current_vendor'] );
+
+		if ( ! $is_ygo && ! $is_vendor ) return;
 
 		wp_enqueue_style( 'tcg-listings', TCG_MANAGER_URL . 'assets/css/listings.css', [], TCG_MANAGER_VERSION );
 
-		if ( is_singular( 'ygo_card' ) ) {
+		if ( is_singular( 'ygo_card' ) || $is_vendor ) {
 			$this->enqueue_listings_js();
 		}
 	}
