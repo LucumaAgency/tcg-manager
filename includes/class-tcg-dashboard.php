@@ -14,6 +14,7 @@ class TCG_Dashboard {
 		$this->add_rewrite_rules(); // Run immediately — we're already in init.
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
 		add_action( 'template_redirect', [ $this, 'process_registration' ] );
+		add_action( 'template_redirect', [ $this, 'process_customer_registration' ] );
 		add_action( 'template_redirect', [ $this, 'process_login' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
@@ -261,40 +262,62 @@ class TCG_Dashboard {
 	}
 
 	/**
-	 * Render auth shortcode: login + register tabs.
+	 * Render auth shortcode: login + register (customer / vendor) tabs.
 	 */
 	public function render_register() {
 		wp_enqueue_style( 'tcg-dashboard', TCG_MANAGER_URL . 'assets/css/dashboard.css', [], TCG_MANAGER_VERSION );
 
 		if ( is_user_logged_in() ) {
+			$user = wp_get_current_user();
 			if ( TCG_Vendor_Role::is_vendor() ) {
 				return '<div class="tcg-alert tcg-alert-success">'
 					. esc_html__( 'Ya tienes una cuenta de vendedor.', 'tcg-manager' )
 					. ' <a href="' . esc_url( self::get_dashboard_url() ) . '">'
 					. esc_html__( 'Ir al dashboard', 'tcg-manager' ) . '</a></div>';
 			}
-			return '<div class="tcg-alert tcg-alert-error">'
-				. esc_html__( 'Ya tienes una cuenta.', 'tcg-manager' ) . '</div>';
+			return '<div class="tcg-alert tcg-alert-success">'
+				. sprintf( esc_html__( 'Hola %s, ya tienes una cuenta.', 'tcg-manager' ), esc_html( $user->display_name ) )
+				. ' <a href="' . esc_url( wc_get_account_endpoint_url( 'dashboard' ) ) . '">'
+				. esc_html__( 'Mi cuenta', 'tcg-manager' ) . '</a>'
+				. ' | <a href="' . esc_url( wp_logout_url( get_permalink() ) ) . '">'
+				. esc_html__( 'Cerrar sesión', 'tcg-manager' ) . '</a></div>';
 		}
 
-		$active_tab = isset( $_GET['tab'] ) && $_GET['tab'] === 'register' ? 'register' : 'login';
+		$valid_tabs = [ 'login', 'register', 'vendor' ];
+		$active_tab = isset( $_GET['tab'] ) && in_array( $_GET['tab'], $valid_tabs, true ) ? $_GET['tab'] : 'login';
 
-		// Collect registration errors.
-		$reg_errors = [];
+		// Collect registration errors (vendor).
+		$vendor_errors = [];
 		if ( isset( $_POST['tcg_register_vendor'] ) && wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_vendor_register' ) ) {
-			$active_tab = 'register';
+			$active_tab = 'vendor';
 			$username  = sanitize_user( $_POST['username'] ?? '' );
 			$email     = sanitize_email( $_POST['email'] ?? '' );
 			$password  = $_POST['password'] ?? '';
 			$shop_name = sanitize_text_field( $_POST['shop_name'] ?? '' );
 
-			if ( ! $username ) $reg_errors[] = __( 'El nombre de usuario es obligatorio.', 'tcg-manager' );
-			if ( ! $email )    $reg_errors[] = __( 'El email es obligatorio.', 'tcg-manager' );
-			if ( ! $password ) $reg_errors[] = __( 'La contraseña es obligatoria.', 'tcg-manager' );
-			if ( ! $shop_name ) $reg_errors[] = __( 'El nombre de tienda es obligatorio.', 'tcg-manager' );
-			if ( $password && strlen( $password ) < 6 ) $reg_errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
-			if ( $username && username_exists( $username ) ) $reg_errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
-			if ( $email && email_exists( $email ) ) $reg_errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
+			if ( ! $username ) $vendor_errors[] = __( 'El nombre de usuario es obligatorio.', 'tcg-manager' );
+			if ( ! $email )    $vendor_errors[] = __( 'El email es obligatorio.', 'tcg-manager' );
+			if ( ! $password ) $vendor_errors[] = __( 'La contraseña es obligatoria.', 'tcg-manager' );
+			if ( ! $shop_name ) $vendor_errors[] = __( 'El nombre de tienda es obligatorio.', 'tcg-manager' );
+			if ( $password && strlen( $password ) < 6 ) $vendor_errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
+			if ( $username && username_exists( $username ) ) $vendor_errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
+			if ( $email && email_exists( $email ) ) $vendor_errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
+		}
+
+		// Collect registration errors (customer).
+		$customer_errors = [];
+		if ( isset( $_POST['tcg_register_customer'] ) && wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_customer_register' ) ) {
+			$active_tab = 'register';
+			$username = sanitize_user( $_POST['username'] ?? '' );
+			$email    = sanitize_email( $_POST['email'] ?? '' );
+			$password = $_POST['password'] ?? '';
+
+			if ( ! $username ) $customer_errors[] = __( 'El nombre de usuario es obligatorio.', 'tcg-manager' );
+			if ( ! $email )    $customer_errors[] = __( 'El email es obligatorio.', 'tcg-manager' );
+			if ( ! $password ) $customer_errors[] = __( 'La contraseña es obligatoria.', 'tcg-manager' );
+			if ( $password && strlen( $password ) < 6 ) $customer_errors[] = __( 'La contraseña debe tener al menos 6 caracteres.', 'tcg-manager' );
+			if ( $username && username_exists( $username ) ) $customer_errors[] = __( 'Este nombre de usuario ya existe.', 'tcg-manager' );
+			if ( $email && email_exists( $email ) ) $customer_errors[] = __( 'Este email ya está registrado.', 'tcg-manager' );
 		}
 
 		// Login error.
@@ -303,17 +326,23 @@ class TCG_Dashboard {
 			$login_error = __( 'Usuario o contraseña incorrectos.', 'tcg-manager' );
 		}
 
+		$base_url = remove_query_arg( [ 'tab', 'tcg_login_error' ] );
+
 		ob_start();
 		?>
 		<div class="tcg-auth-wrap">
 			<div class="tcg-auth-tabs">
-				<a href="<?php echo esc_url( remove_query_arg( 'tab' ) ); ?>"
+				<a href="<?php echo esc_url( $base_url ); ?>"
 				   class="tcg-auth-tab <?php echo $active_tab === 'login' ? 'active' : ''; ?>">
 					<?php esc_html_e( 'Iniciar sesión', 'tcg-manager' ); ?>
 				</a>
-				<a href="<?php echo esc_url( add_query_arg( 'tab', 'register' ) ); ?>"
+				<a href="<?php echo esc_url( add_query_arg( 'tab', 'register', $base_url ) ); ?>"
 				   class="tcg-auth-tab <?php echo $active_tab === 'register' ? 'active' : ''; ?>">
-					<?php esc_html_e( 'Registrarse', 'tcg-manager' ); ?>
+					<?php esc_html_e( 'Comprador', 'tcg-manager' ); ?>
+				</a>
+				<a href="<?php echo esc_url( add_query_arg( 'tab', 'vendor', $base_url ) ); ?>"
+				   class="tcg-auth-tab <?php echo $active_tab === 'vendor' ? 'active' : ''; ?>">
+					<?php esc_html_e( 'Vendedor', 'tcg-manager' ); ?>
 				</a>
 			</div>
 
@@ -357,12 +386,68 @@ class TCG_Dashboard {
 					</form>
 				</div>
 
-			<?php else : ?>
-				<!-- Register form -->
+			<?php elseif ( $active_tab === 'register' ) : ?>
+				<!-- Customer register form -->
 				<div class="tcg-auth-panel">
-					<?php if ( ! empty( $reg_errors ) ) : ?>
+					<p class="tcg-auth-description"><?php esc_html_e( 'Crea una cuenta para comprar cartas.', 'tcg-manager' ); ?></p>
+
+					<?php if ( ! empty( $customer_errors ) ) : ?>
 						<div class="tcg-alert tcg-alert-error">
-							<?php foreach ( $reg_errors as $error ) : ?>
+							<?php foreach ( $customer_errors as $error ) : ?>
+								<p style="margin:0 0 4px;"><?php echo esc_html( $error ); ?></p>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+
+					<form method="post" class="tcg-product-form">
+						<?php wp_nonce_field( 'tcg_customer_register' ); ?>
+
+						<div class="tcg-form-group">
+							<label for="tcg-creg-username" class="tcg-form-label">
+								<?php esc_html_e( 'Nombre de usuario', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="text" name="username" id="tcg-creg-username" class="tcg-form-control"
+								   value="<?php echo esc_attr( $_POST['username'] ?? '' ); ?>" required>
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-creg-email" class="tcg-form-label">
+								<?php esc_html_e( 'Email', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="email" name="email" id="tcg-creg-email" class="tcg-form-control"
+								   value="<?php echo esc_attr( $_POST['email'] ?? '' ); ?>" required>
+						</div>
+
+						<div class="tcg-form-group">
+							<label for="tcg-creg-password" class="tcg-form-label">
+								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?> <span class="required">*</span>
+							</label>
+							<input type="password" name="password" id="tcg-creg-password" class="tcg-form-control" required minlength="6">
+						</div>
+
+						<div class="tcg-form-actions">
+							<button type="submit" name="tcg_register_customer" value="1" class="tcg-btn tcg-btn-primary" style="width:100%;">
+								<?php esc_html_e( 'Crear cuenta', 'tcg-manager' ); ?>
+							</button>
+						</div>
+
+						<p style="margin-top:12px;text-align:center;font-size:13px;">
+							<?php esc_html_e( '¿Quieres vender cartas?', 'tcg-manager' ); ?>
+							<a href="<?php echo esc_url( add_query_arg( 'tab', 'vendor', $base_url ) ); ?>">
+								<?php esc_html_e( 'Regístrate como vendedor', 'tcg-manager' ); ?>
+							</a>
+						</p>
+					</form>
+				</div>
+
+			<?php else : ?>
+				<!-- Vendor register form -->
+				<div class="tcg-auth-panel">
+					<p class="tcg-auth-description"><?php esc_html_e( 'Crea una cuenta de vendedor para publicar tus cartas.', 'tcg-manager' ); ?></p>
+
+					<?php if ( ! empty( $vendor_errors ) ) : ?>
+						<div class="tcg-alert tcg-alert-error">
+							<?php foreach ( $vendor_errors as $error ) : ?>
 								<p style="margin:0 0 4px;"><?php echo esc_html( $error ); ?></p>
 							<?php endforeach; ?>
 						</div>
@@ -372,41 +457,48 @@ class TCG_Dashboard {
 						<?php wp_nonce_field( 'tcg_vendor_register' ); ?>
 
 						<div class="tcg-form-group">
-							<label for="tcg-reg-username" class="tcg-form-label">
+							<label for="tcg-vreg-username" class="tcg-form-label">
 								<?php esc_html_e( 'Nombre de usuario', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="text" name="username" id="tcg-reg-username" class="tcg-form-control"
+							<input type="text" name="username" id="tcg-vreg-username" class="tcg-form-control"
 								   value="<?php echo esc_attr( $_POST['username'] ?? '' ); ?>" required>
 						</div>
 
 						<div class="tcg-form-group">
-							<label for="tcg-reg-email" class="tcg-form-label">
+							<label for="tcg-vreg-email" class="tcg-form-label">
 								<?php esc_html_e( 'Email', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="email" name="email" id="tcg-reg-email" class="tcg-form-control"
+							<input type="email" name="email" id="tcg-vreg-email" class="tcg-form-control"
 								   value="<?php echo esc_attr( $_POST['email'] ?? '' ); ?>" required>
 						</div>
 
 						<div class="tcg-form-group">
-							<label for="tcg-reg-password" class="tcg-form-label">
+							<label for="tcg-vreg-password" class="tcg-form-label">
 								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="password" name="password" id="tcg-reg-password" class="tcg-form-control" required minlength="6">
+							<input type="password" name="password" id="tcg-vreg-password" class="tcg-form-control" required minlength="6">
 						</div>
 
 						<div class="tcg-form-group">
-							<label for="tcg-reg-shop" class="tcg-form-label">
+							<label for="tcg-vreg-shop" class="tcg-form-label">
 								<?php esc_html_e( 'Nombre de tu tienda', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="text" name="shop_name" id="tcg-reg-shop" class="tcg-form-control"
+							<input type="text" name="shop_name" id="tcg-vreg-shop" class="tcg-form-control"
 								   value="<?php echo esc_attr( $_POST['shop_name'] ?? '' ); ?>" required>
 						</div>
 
 						<div class="tcg-form-actions">
 							<button type="submit" name="tcg_register_vendor" value="1" class="tcg-btn tcg-btn-primary" style="width:100%;">
-								<?php esc_html_e( 'Crear cuenta', 'tcg-manager' ); ?>
+								<?php esc_html_e( 'Crear cuenta de vendedor', 'tcg-manager' ); ?>
 							</button>
 						</div>
+
+						<p style="margin-top:12px;text-align:center;font-size:13px;">
+							<?php esc_html_e( '¿Solo quieres comprar?', 'tcg-manager' ); ?>
+							<a href="<?php echo esc_url( add_query_arg( 'tab', 'register', $base_url ) ); ?>">
+								<?php esc_html_e( 'Regístrate como comprador', 'tcg-manager' ); ?>
+							</a>
+						</p>
 					</form>
 				</div>
 			<?php endif; ?>
@@ -460,6 +552,51 @@ class TCG_Dashboard {
 	}
 
 	/**
+	 * Process customer registration before output.
+	 */
+	public function process_customer_registration() {
+		if ( ! isset( $_POST['tcg_register_customer'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'tcg_customer_register' ) ) {
+			return;
+		}
+		if ( is_user_logged_in() ) {
+			return;
+		}
+
+		$username = sanitize_user( $_POST['username'] ?? '' );
+		$email    = sanitize_email( $_POST['email'] ?? '' );
+		$password = $_POST['password'] ?? '';
+
+		if ( ! $username || ! $email || ! $password ) {
+			return;
+		}
+		if ( strlen( $password ) < 6 || username_exists( $username ) || email_exists( $email ) ) {
+			return;
+		}
+
+		$user_id = wp_create_user( $username, $password, $email );
+		if ( is_wp_error( $user_id ) ) {
+			return;
+		}
+
+		// Set as WooCommerce customer.
+		$user = new WP_User( $user_id );
+		$user->set_role( 'customer' );
+
+		wp_set_current_user( $user_id );
+		wp_set_auth_cookie( $user_id );
+
+		// Redirect to WooCommerce my-account or shop.
+		$redirect = function_exists( 'wc_get_page_permalink' )
+			? wc_get_page_permalink( 'myaccount' )
+			: home_url();
+		wp_safe_redirect( $redirect );
+		exit;
+	}
+
+	/**
 	 * Process vendor login before output.
 	 */
 	public function process_login() {
@@ -486,7 +623,15 @@ class TCG_Dashboard {
 			exit;
 		}
 
-		wp_safe_redirect( self::get_dashboard_url() );
+		// Redirect vendors to dashboard, customers to my-account.
+		if ( in_array( 'tcg_vendor', (array) $user->roles, true ) ) {
+			wp_safe_redirect( self::get_dashboard_url() );
+		} else {
+			$redirect = function_exists( 'wc_get_page_permalink' )
+				? wc_get_page_permalink( 'myaccount' )
+				: home_url();
+			wp_safe_redirect( $redirect );
+		}
 		exit;
 	}
 }
