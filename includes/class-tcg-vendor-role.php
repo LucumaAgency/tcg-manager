@@ -6,7 +6,7 @@ class TCG_Vendor_Role {
 	public function __construct() {
 		// Ensure role exists (in case it was removed).
 		add_action( 'init', [ __CLASS__, 'create_role' ], 5 );
-		add_action( 'after_setup_theme', [ $this, 'hide_admin_bar' ] );
+		$this->hide_admin_bar();
 		add_action( 'admin_init', [ $this, 'block_admin_access' ] );
 	}
 
