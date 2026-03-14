@@ -81,6 +81,9 @@ function tcg_manager_boot() {
  * Activation hook.
  */
 function tcg_manager_activate() {
+	// Load required files for activation.
+	require_once TCG_MANAGER_PATH . 'includes/class-tcg-vendor-role.php';
+
 	// Create vendor role.
 	TCG_Vendor_Role::create_role();
 
