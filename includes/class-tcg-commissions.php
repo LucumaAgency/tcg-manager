@@ -193,42 +193,57 @@ class TCG_Commissions {
 	 * Add WooCommerce settings page.
 	 */
 	public function add_settings_page( $settings ) {
-		$settings[] = new TCG_Manager_Settings();
+		$instance = tcg_manager_get_settings_class();
+		if ( $instance ) {
+			$settings[] = $instance;
+		}
 		return $settings;
 	}
 }
 
 /**
- * WooCommerce settings tab.
+ * WooCommerce settings tab — loaded lazily to avoid class-not-found errors.
  */
-class TCG_Manager_Settings extends WC_Settings_Page {
-
-	public function __construct() {
-		$this->id    = 'tcg-manager';
-		$this->label = __( 'TCG Manager', 'tcg-manager' );
-		parent::__construct();
+function tcg_manager_get_settings_class() {
+	if ( ! class_exists( 'WC_Settings_Page' ) ) {
+		return null;
 	}
 
-	public function get_settings() {
-		return [
-			[
-				'title' => __( 'Comisiones', 'tcg-manager' ),
-				'type'  => 'title',
-				'id'    => 'tcg_commission_options',
-			],
-			[
-				'title'    => __( 'Comisión global (%)', 'tcg-manager' ),
-				'desc'     => __( 'Porcentaje de comisión por defecto para todos los vendedores.', 'tcg-manager' ),
-				'id'       => 'tcg_manager_commission_rate',
-				'type'     => 'number',
-				'default'  => '10',
-				'css'      => 'width:80px;',
-				'custom_attributes' => [ 'min' => '0', 'max' => '100', 'step' => '0.1' ],
-			],
-			[
-				'type' => 'sectionend',
-				'id'   => 'tcg_commission_options',
-			],
-		];
+	if ( class_exists( 'TCG_Manager_Settings' ) ) {
+		return new TCG_Manager_Settings();
 	}
+
+	class TCG_Manager_Settings extends WC_Settings_Page {
+
+		public function __construct() {
+			$this->id    = 'tcg-manager';
+			$this->label = __( 'TCG Manager', 'tcg-manager' );
+			parent::__construct();
+		}
+
+		public function get_settings() {
+			return [
+				[
+					'title' => __( 'Comisiones', 'tcg-manager' ),
+					'type'  => 'title',
+					'id'    => 'tcg_commission_options',
+				],
+				[
+					'title'    => __( 'Comisión global (%)', 'tcg-manager' ),
+					'desc'     => __( 'Porcentaje de comisión por defecto para todos los vendedores.', 'tcg-manager' ),
+					'id'       => 'tcg_manager_commission_rate',
+					'type'     => 'number',
+					'default'  => '10',
+					'css'      => 'width:80px;',
+					'custom_attributes' => [ 'min' => '0', 'max' => '100', 'step' => '0.1' ],
+				],
+				[
+					'type' => 'sectionend',
+					'id'   => 'tcg_commission_options',
+				],
+			];
+		}
+	}
+
+	return new TCG_Manager_Settings();
 }
