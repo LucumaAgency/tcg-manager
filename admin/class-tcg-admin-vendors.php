@@ -26,8 +26,10 @@ class TCG_Admin_Vendors {
 		$vendor_id = absint( $_POST['vendor_id'] );
 		if ( ! $vendor_id ) return;
 
-		$rate = sanitize_text_field( $_POST['commission_rate'] ?? '' );
+		$rate  = sanitize_text_field( $_POST['commission_rate'] ?? '' );
+		$fixed = sanitize_text_field( $_POST['commission_fixed'] ?? '' );
 		update_user_meta( $vendor_id, '_tcg_commission_rate', $rate );
+		update_user_meta( $vendor_id, '_tcg_commission_fixed', $fixed );
 
 		wp_safe_redirect( admin_url( 'admin.php?page=tcg-vendors&tcg_msg=saved' ) );
 		exit;
@@ -70,7 +72,6 @@ class TCG_Admin_Vendors {
 					<tr><td colspan="8"><?php esc_html_e( 'No hay vendedores registrados.', 'tcg-manager' ); ?></td></tr>
 				<?php else : foreach ( $vendors as $vendor ) :
 					$shop_name = TCG_Vendor_Profile::get_shop_name( $vendor->ID );
-					$rate      = TCG_Commissions::get_commission_rate( $vendor->ID );
 					$balance   = TCG_Commissions::get_vendor_balance( $vendor->ID );
 					$products  = count_user_posts( $vendor->ID, 'product', true );
 					?>
@@ -78,7 +79,7 @@ class TCG_Admin_Vendors {
 						<td><?php echo esc_html( $vendor->ID ); ?></td>
 						<td><?php echo esc_html( $vendor->display_name ); ?></td>
 						<td><?php echo esc_html( $shop_name ); ?></td>
-						<td><?php echo esc_html( $rate ); ?>%</td>
+						<td><?php echo wp_kses_post( TCG_Commissions::format_commission( $vendor->ID ) ); ?></td>
 						<td><?php echo esc_html( $products ); ?></td>
 						<td><?php echo wc_price( $balance ); ?></td>
 						<td><?php echo esc_html( date_i18n( 'd/m/Y', strtotime( $vendor->user_registered ) ) ); ?></td>
@@ -102,8 +103,11 @@ class TCG_Admin_Vendors {
 			return;
 		}
 
-		$data = TCG_Vendor_Role::get_vendor_data( $vendor_id );
-		$global_rate = get_option( 'tcg_manager_commission_rate', 10 );
+		$data         = TCG_Vendor_Role::get_vendor_data( $vendor_id );
+		$global_rate  = get_option( 'tcg_manager_commission_rate', 10 );
+		$global_fixed = get_option( 'tcg_manager_commission_fixed', 0 );
+		$vendor_fixed = get_user_meta( $vendor_id, '_tcg_commission_fixed', true );
+		$currency     = get_woocommerce_currency_symbol();
 		?>
 		<div class="wrap">
 			<h1><?php printf( esc_html__( 'Editar vendedor: %s', 'tcg-manager' ), esc_html( $vendor->display_name ) ); ?></h1>
@@ -127,12 +131,21 @@ class TCG_Admin_Vendors {
 						<td><?php echo $data['payment_info'] ? nl2br( esc_html( $data['payment_info'] ) ) : '—'; ?></td>
 					</tr>
 					<tr>
-						<th><label for="commission_rate"><?php esc_html_e( 'Comisión (%)', 'tcg-manager' ); ?></label></th>
+						<th><label for="commission_rate"><?php esc_html_e( 'Comisión porcentual (%)', 'tcg-manager' ); ?></label></th>
 						<td>
 							<input type="number" name="commission_rate" id="commission_rate"
 								   value="<?php echo esc_attr( $data['commission_rate'] ); ?>"
 								   step="0.1" min="0" max="100" style="width:80px;">
 							<p class="description"><?php printf( esc_html__( 'Dejar vacío para usar la global (%s%%)', 'tcg-manager' ), esc_html( $global_rate ) ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th><label for="commission_fixed"><?php printf( esc_html__( 'Comisión fija (%s)', 'tcg-manager' ), esc_html( $currency ) ); ?></label></th>
+						<td>
+							<input type="number" name="commission_fixed" id="commission_fixed"
+								   value="<?php echo esc_attr( $vendor_fixed ); ?>"
+								   step="0.01" min="0" style="width:80px;">
+							<p class="description"><?php printf( esc_html__( 'Por unidad vendida. Dejar vacío para usar la global (%s)', 'tcg-manager' ), esc_html( wc_price( $global_fixed ) ) ); ?></p>
 						</td>
 					</tr>
 				</table>

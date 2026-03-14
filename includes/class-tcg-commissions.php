@@ -10,14 +10,49 @@ class TCG_Commissions {
 	}
 
 	/**
-	 * Get commission rate for a vendor.
+	 * Get commission config for a vendor: [ 'rate' => float, 'fixed' => float ].
+	 */
+	public static function get_commission_config( $vendor_id ) {
+		$rate  = get_user_meta( $vendor_id, '_tcg_commission_rate', true );
+		$fixed = get_user_meta( $vendor_id, '_tcg_commission_fixed', true );
+
+		return [
+			'rate'  => ( $rate !== '' && $rate !== false ) ? (float) $rate : (float) get_option( 'tcg_manager_commission_rate', 10 ),
+			'fixed' => ( $fixed !== '' && $fixed !== false ) ? (float) $fixed : (float) get_option( 'tcg_manager_commission_fixed', 0 ),
+		];
+	}
+
+	/**
+	 * Get commission rate for a vendor (percentage only — kept for backward compat).
 	 */
 	public static function get_commission_rate( $vendor_id ) {
-		$per_vendor = get_user_meta( $vendor_id, '_tcg_commission_rate', true );
-		if ( $per_vendor !== '' && $per_vendor !== false ) {
-			return (float) $per_vendor;
+		$config = self::get_commission_config( $vendor_id );
+		return $config['rate'];
+	}
+
+	/**
+	 * Calculate commission amount for a sale total.
+	 */
+	public static function calculate_commission_amount( $sale_total, $vendor_id, $quantity = 1 ) {
+		$config     = self::get_commission_config( $vendor_id );
+		$percentage = round( $sale_total * $config['rate'] / 100, 2 );
+		$fixed      = round( $config['fixed'] * $quantity, 2 );
+		return $percentage + $fixed;
+	}
+
+	/**
+	 * Format commission config for display (e.g. "10% + S/ 1.00").
+	 */
+	public static function format_commission( $vendor_id ) {
+		$config = self::get_commission_config( $vendor_id );
+		$parts  = [];
+		if ( $config['rate'] > 0 ) {
+			$parts[] = $config['rate'] . '%';
 		}
-		return (float) get_option( 'tcg_manager_commission_rate', 10 );
+		if ( $config['fixed'] > 0 ) {
+			$parts[] = wc_price( $config['fixed'] );
+		}
+		return $parts ? implode( ' + ', $parts ) : '0%';
 	}
 
 	/**
@@ -75,9 +110,10 @@ class TCG_Commissions {
 			}
 
 			$sale_total = (float) $item->get_total();
-			$rate       = self::get_commission_rate( $vendor_id );
-			$commission = round( $sale_total * $rate / 100, 2 );
+			$quantity   = (int) $item->get_quantity();
+			$commission = self::calculate_commission_amount( $sale_total, $vendor_id, $quantity );
 			$vendor_net = round( $sale_total - $commission, 2 );
+			if ( $vendor_net < 0 ) $vendor_net = 0;
 
 			$wpdb->insert( $table, [
 				'order_id'     => $parent_order_id ?: $order->get_id(),
@@ -222,20 +258,32 @@ function tcg_manager_get_settings_class() {
 		}
 
 		public function get_settings() {
+			$currency = get_woocommerce_currency_symbol();
 			return [
 				[
 					'title' => __( 'Comisiones', 'tcg-manager' ),
 					'type'  => 'title',
+					'desc'  => __( 'La comisión se calcula por item: (venta × porcentaje / 100) + (fija × cantidad). Se pueden usar ambas o solo una.', 'tcg-manager' ),
 					'id'    => 'tcg_commission_options',
 				],
 				[
-					'title'    => __( 'Comisión global (%)', 'tcg-manager' ),
-					'desc'     => __( 'Porcentaje de comisión por defecto para todos los vendedores.', 'tcg-manager' ),
+					'title'    => __( 'Comisión porcentual (%)', 'tcg-manager' ),
+					'desc'     => __( 'Porcentaje de comisión por defecto.', 'tcg-manager' ),
 					'id'       => 'tcg_manager_commission_rate',
 					'type'     => 'number',
 					'default'  => '10',
 					'css'      => 'width:80px;',
 					'custom_attributes' => [ 'min' => '0', 'max' => '100', 'step' => '0.1' ],
+				],
+				[
+					/* translators: %s = currency symbol */
+					'title'    => sprintf( __( 'Comisión fija (%s)', 'tcg-manager' ), $currency ),
+					'desc'     => __( 'Monto fijo de comisión por unidad vendida. Se suma al porcentaje.', 'tcg-manager' ),
+					'id'       => 'tcg_manager_commission_fixed',
+					'type'     => 'number',
+					'default'  => '0',
+					'css'      => 'width:80px;',
+					'custom_attributes' => [ 'min' => '0', 'step' => '0.01' ],
 				],
 				[
 					'type' => 'sectionend',
