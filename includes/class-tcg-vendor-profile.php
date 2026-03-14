@@ -8,7 +8,13 @@ class TCG_Vendor_Profile {
 		$this->add_rewrite_rules();
 		$this->maybe_flush_rewrites();
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
-		add_action( 'template_redirect', [ $this, 'resolve_store_vendor' ] );
+		add_action( 'template_redirect', [ $this, 'resolve_store_vendor' ], 5 );
+		add_filter( 'template_include', [ $this, 'force_store_page_template' ], 999 );
+
+		// Flush rewrites when store page option changes.
+		add_action( 'update_option_tcg_store_page_id', function () {
+			update_option( 'tcg_manager_flush_rewrite', 1 );
+		} );
 
 		// Shortcodes.
 		add_shortcode( 'tcg_vendor_name', [ $this, 'sc_vendor_name' ] );
@@ -78,7 +84,8 @@ class TCG_Vendor_Profile {
 
 	/**
 	 * Resolve the vendor from URL slug and set it as query var.
-	 * If there's a store page configured, let WP handle it normally (Bricks will render).
+	 * If there's a store page configured, force WP to treat this as that page
+	 * so Bricks (or any page builder) renders the template.
 	 * Otherwise, fall back to the PHP template.
 	 */
 	public function resolve_store_vendor() {
@@ -100,9 +107,24 @@ class TCG_Vendor_Profile {
 		set_query_var( 'tcg_vendor_user', $vendor );
 		$GLOBALS['tcg_current_vendor'] = $vendor;
 
-		// If we're on the store page (has page_id), let WP/Bricks handle rendering.
+		// If a store page is configured, force WP main query to behave as that page.
 		$store_page_id = (int) get_option( 'tcg_store_page_id', 0 );
-		if ( $store_page_id && is_page( $store_page_id ) ) {
+		if ( $store_page_id ) {
+			global $wp_query, $post;
+
+			// Force the main query to treat this as the store page.
+			$wp_query->queried_object    = get_post( $store_page_id );
+			$wp_query->queried_object_id = $store_page_id;
+			$wp_query->is_page           = true;
+			$wp_query->is_singular       = true;
+			$wp_query->is_404            = false;
+			$wp_query->is_home           = false;
+			$wp_query->is_archive        = false;
+
+			// Ensure the global $post is set to the store page.
+			$post = get_post( $store_page_id );
+			setup_postdata( $post );
+
 			return; // Bricks or the page template will render with shortcodes.
 		}
 
@@ -115,6 +137,37 @@ class TCG_Vendor_Profile {
 			include $template;
 			exit;
 		}
+	}
+
+	/**
+	 * Force Bricks/WP to use the store page template when on a vendor store URL.
+	 */
+	public function force_store_page_template( $template ) {
+		if ( empty( $GLOBALS['tcg_current_vendor'] ) ) {
+			return $template;
+		}
+
+		$store_page_id = (int) get_option( 'tcg_store_page_id', 0 );
+		if ( ! $store_page_id ) {
+			return $template;
+		}
+
+		// If Bricks is active and has content for this page, let Bricks handle it.
+		if ( defined( 'BRICKS_VERSION' ) ) {
+			$bricks_data = get_post_meta( $store_page_id, BRICKS_DB_PAGE_CONTENT, true );
+			if ( ! empty( $bricks_data ) ) {
+				// Force Bricks to render this page.
+				return locate_template( 'singular.php' ) ?: $template;
+			}
+		}
+
+		// Standard WordPress page template.
+		$page_template = get_page_template_slug( $store_page_id );
+		if ( $page_template && file_exists( get_stylesheet_directory() . '/' . $page_template ) ) {
+			return get_stylesheet_directory() . '/' . $page_template;
+		}
+
+		return $template;
 	}
 
 	/**
