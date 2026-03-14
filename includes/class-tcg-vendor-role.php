@@ -6,6 +6,27 @@ class TCG_Vendor_Role {
 	public function __construct() {
 		// Ensure role exists (in case it was removed).
 		add_action( 'init', [ __CLASS__, 'create_role' ], 5 );
+		add_action( 'after_setup_theme', [ $this, 'hide_admin_bar' ] );
+		add_action( 'admin_init', [ $this, 'block_admin_access' ] );
+	}
+
+	/**
+	 * Hide the WP admin bar for vendors on the frontend.
+	 */
+	public function hide_admin_bar() {
+		if ( self::is_vendor() ) {
+			show_admin_bar( false );
+		}
+	}
+
+	/**
+	 * Block vendor access to wp-admin (redirect to dashboard).
+	 */
+	public function block_admin_access() {
+		if ( self::is_vendor() && ! wp_doing_ajax() && ! defined( 'DOING_CRON' ) ) {
+			wp_safe_redirect( TCG_Dashboard::get_dashboard_url() );
+			exit;
+		}
 	}
 
 	/**
