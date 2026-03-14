@@ -25,6 +25,13 @@ class TCG_Vendor_Profile {
 		add_shortcode( 'tcg_vendor_url', [ $this, 'sc_vendor_url' ] );
 
 		add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_store_css' ] );
+
+		// Bricks Query Loop integration.
+		if ( defined( 'BRICKS_VERSION' ) ) {
+			add_filter( 'bricks/setup/control_options', [ $this, 'bricks_add_query_type' ] );
+			add_filter( 'bricks/query/run', [ $this, 'bricks_run_vendor_query' ], 10, 2 );
+			add_filter( 'bricks/query/loop_object', [ $this, 'bricks_loop_object' ], 10, 3 );
+		}
 	}
 
 	public function register_meta() {
@@ -337,6 +344,67 @@ class TCG_Vendor_Profile {
 		if ( ! empty( $GLOBALS['tcg_current_vendor'] ) || get_query_var( 'tcg_vendor_store' ) ) {
 			wp_enqueue_style( 'tcg-dashboard', TCG_MANAGER_URL . 'assets/css/dashboard.css', [], TCG_MANAGER_VERSION );
 		}
+	}
+
+	/* ─── Bricks Query Loop ─── */
+
+	/**
+	 * Register "Vendor Products" query type in Bricks.
+	 */
+	public function bricks_add_query_type( $control_options ) {
+		$control_options['queryTypes']['tcg_vendor_products'] = esc_html__( 'Vendor Products', 'tcg-manager' );
+		return $control_options;
+	}
+
+	/**
+	 * Run the custom "tcg_vendor_products" query for Bricks loop.
+	 */
+	public function bricks_run_vendor_query( $results, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $results;
+		}
+
+		$vendor = self::get_current_vendor();
+		if ( ! $vendor ) {
+			return [];
+		}
+
+		$settings = $query->settings;
+		$paged    = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
+
+		$args = [
+			'post_type'      => 'product',
+			'post_status'    => 'publish',
+			'author'         => $vendor->ID,
+			'posts_per_page' => ! empty( $settings['posts_per_page'] ) ? absint( $settings['posts_per_page'] ) : 24,
+			'paged'          => $paged,
+		];
+
+		$wp_query = new \WP_Query( $args );
+
+		// Store for pagination.
+		$query->count        = $wp_query->found_posts;
+		$query->max_num_pages = $wp_query->max_num_pages;
+
+		return $wp_query->posts;
+	}
+
+	/**
+	 * Set the loop object for each iteration (WP_Post → can use dynamic data).
+	 */
+	public function bricks_loop_object( $loop_object, $loop_key, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $loop_object;
+		}
+
+		// Ensure global $post is set so Bricks dynamic tags work ({post_title}, {featured_image}, etc.).
+		if ( $loop_object instanceof \WP_Post ) {
+			global $post;
+			$post = $loop_object;
+			setup_postdata( $post );
+		}
+
+		return $loop_object;
 	}
 
 	/* ─── Static helpers ─── */
