@@ -68,7 +68,11 @@ class TCG_Listings {
 		if ( $post_type === 'product' || ! empty( $atts['product_id'] ) ) {
 			$product_id = ! empty( $atts['product_id'] ) ? absint( $atts['product_id'] ) : $post_id;
 			$product    = wc_get_product( $product_id );
-			if ( ! $product || ! $product->is_in_stock() ) {
+			$available  = $product && $product->is_purchasable() && $product->is_in_stock();
+			if ( $available && $product->managing_stock() && $product->get_stock_quantity() <= 0 ) {
+				$available = false;
+			}
+			if ( ! $available ) {
 				return '<button type="button" class="tcg-add-to-cart button alt" disabled>' . esc_html__( 'No disponible', 'tcg-manager' ) . '</button>';
 			}
 			$nonce = wp_create_nonce( 'tcg_listings_nonce' );
@@ -116,7 +120,9 @@ class TCG_Listings {
 		$listings = [];
 		foreach ( $query->posts as $post ) {
 			$product = wc_get_product( $post->ID );
-			if ( ! $product || ! $product->is_in_stock() ) continue;
+			if ( ! $product || ! $product->is_purchasable() || ! $product->is_in_stock() ) continue;
+			// If stock is managed, require quantity > 0.
+			if ( $product->managing_stock() && $product->get_stock_quantity() <= 0 ) continue;
 			$listing = $this->get_listing_data( $product );
 			if ( $listing ) $listings[] = $listing;
 		}
