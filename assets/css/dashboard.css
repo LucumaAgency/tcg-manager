@@ -250,7 +250,36 @@
    ========================================================================== */
 
 .tcg-product-form {
-	max-width: 600px;
+	max-width: 100%;
+}
+
+/* Password toggle */
+.tcg-password-wrap {
+	position: relative;
+}
+
+.tcg-password-wrap .tcg-form-control {
+	padding-right: 42px;
+}
+
+.tcg-password-toggle {
+	position: absolute;
+	right: 10px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 4px;
+	color: #888;
+	font-size: 18px;
+	line-height: 1;
+	display: flex;
+	align-items: center;
+}
+
+.tcg-password-toggle:hover {
+	color: #333;
 }
 
 .tcg-form-group {
@@ -444,12 +473,12 @@
    ========================================================================== */
 
 .tcg-auth-wrap {
-	max-width: 440px;
-	margin: 40px auto;
+	width: 100%;
 	border: 1px solid #e0e0e0;
 	border-radius: 8px;
 	background: #fff;
 	overflow: hidden;
+	box-sizing: border-box;
 }
 
 .tcg-auth-tabs {

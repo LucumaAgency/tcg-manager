@@ -369,7 +369,10 @@ class TCG_Dashboard {
 							<label for="tcg-login-pass" class="tcg-form-label">
 								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?>
 							</label>
-							<input type="password" name="pwd" id="tcg-login-pass" class="tcg-form-control" required>
+							<div class="tcg-password-wrap">
+								<input type="password" name="pwd" id="tcg-login-pass" class="tcg-form-control" required>
+								<button type="button" class="tcg-password-toggle" aria-label="<?php esc_attr_e( 'Mostrar contraseña', 'tcg-manager' ); ?>">&#128065;</button>
+							</div>
 						</div>
 
 						<div class="tcg-form-actions">
@@ -422,7 +425,10 @@ class TCG_Dashboard {
 							<label for="tcg-creg-password" class="tcg-form-label">
 								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="password" name="password" id="tcg-creg-password" class="tcg-form-control" required minlength="6">
+							<div class="tcg-password-wrap">
+								<input type="password" name="password" id="tcg-creg-password" class="tcg-form-control" required minlength="6">
+								<button type="button" class="tcg-password-toggle" aria-label="<?php esc_attr_e( 'Mostrar contraseña', 'tcg-manager' ); ?>">&#128065;</button>
+							</div>
 						</div>
 
 						<div class="tcg-form-actions">
@@ -476,7 +482,10 @@ class TCG_Dashboard {
 							<label for="tcg-vreg-password" class="tcg-form-label">
 								<?php esc_html_e( 'Contraseña', 'tcg-manager' ); ?> <span class="required">*</span>
 							</label>
-							<input type="password" name="password" id="tcg-vreg-password" class="tcg-form-control" required minlength="6">
+							<div class="tcg-password-wrap">
+								<input type="password" name="password" id="tcg-vreg-password" class="tcg-form-control" required minlength="6">
+								<button type="button" class="tcg-password-toggle" aria-label="<?php esc_attr_e( 'Mostrar contraseña', 'tcg-manager' ); ?>">&#128065;</button>
+							</div>
 						</div>
 
 						<div class="tcg-form-group">
@@ -503,6 +512,16 @@ class TCG_Dashboard {
 				</div>
 			<?php endif; ?>
 		</div>
+		<script>
+		document.querySelectorAll('.tcg-password-toggle').forEach(function(btn){
+			btn.addEventListener('click',function(){
+				var input=this.previousElementSibling;
+				var show=input.type==='password';
+				input.type=show?'text':'password';
+				this.innerHTML=show?'&#128064;':'&#128065;';
+			});
+		});
+		</script>
 		<?php
 		return ob_get_clean();
 	}
