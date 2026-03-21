@@ -4,11 +4,11 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Custom WooCommerce shipping method that calculates per-vendor shipping
  * based on the customer's location (Lima Metropolitana vs Provincia).
+ *
+ * Cart is split into one package per vendor so each vendor's shipping
+ * cost and delivery time is displayed separately at checkout.
  */
 class TCG_Shipping extends WC_Shipping_Method {
-
-	/** @var string Lima department code used in WooCommerce. */
-	const LIMA_STATE = 'LIM';
 
 	public function __construct( $instance_id = 0 ) {
 		$this->id                 = 'tcg_vendor_shipping';
@@ -26,58 +26,34 @@ class TCG_Shipping extends WC_Shipping_Method {
 	}
 
 	/**
-	 * Calculate shipping — one rate per vendor in the cart.
+	 * Calculate shipping for a single-vendor package.
 	 */
 	public function calculate_shipping( $package = [] ) {
+		$vendor_id = $package['tcg_vendor_id'] ?? 0;
+		if ( ! $vendor_id ) {
+			// Fallback: get vendor from first item.
+			$first = reset( $package['contents'] );
+			$vendor_id = $first ? (int) get_post_field( 'post_author', $first['product_id'] ) : 0;
+		}
+
+		if ( ! $vendor_id ) return;
+
 		$destination_state = $package['destination']['state'] ?? '';
 		$is_lima           = $this->is_lima( $destination_state );
 
-		// Group items by vendor.
-		$vendors = [];
-		foreach ( $package['contents'] as $item ) {
-			$product_id = $item['product_id'];
-			$vendor_id  = (int) get_post_field( 'post_author', $product_id );
-			if ( ! $vendor_id ) continue;
+		$vendor_name = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$cost        = $this->get_vendor_shipping_cost( $vendor_id, $is_lima );
+		$days        = $this->get_vendor_shipping_days( $vendor_id, $is_lima );
 
-			if ( ! isset( $vendors[ $vendor_id ] ) ) {
-				$vendors[ $vendor_id ] = [
-					'name'  => TCG_Vendor_Profile::get_shop_name( $vendor_id ),
-					'cost'  => $this->get_vendor_shipping_cost( $vendor_id, $is_lima ),
-					'days'  => $this->get_vendor_shipping_days( $vendor_id, $is_lima ),
-				];
-			}
-		}
-
-		if ( empty( $vendors ) ) return;
-
-		// If single vendor, add one clean rate.
-		if ( count( $vendors ) === 1 ) {
-			$vendor = reset( $vendors );
-			$label  = $this->build_label( $vendor['name'], $vendor['days'] );
-			$this->add_rate( [
-				'id'    => $this->get_rate_id(),
-				'label' => $label,
-				'cost'  => $vendor['cost'],
-			] );
-			return;
-		}
-
-		// Multiple vendors: sum costs and combine labels.
-		$total_cost = 0;
-		$labels     = [];
-		foreach ( $vendors as $vendor ) {
-			$total_cost += $vendor['cost'];
-			$labels[]    = $vendor['name'] . ': ' . wc_price( $vendor['cost'] )
-				. ( $vendor['days'] ? ' (' . $vendor['days'] . ')' : '' );
+		$label = sprintf( __( 'Envío — %s', 'tcg-manager' ), $vendor_name );
+		if ( $days ) {
+			$label .= ' (' . $days . ')';
 		}
 
 		$this->add_rate( [
 			'id'    => $this->get_rate_id(),
-			'label' => __( 'Envío por vendedor', 'tcg-manager' ),
-			'cost'  => $total_cost,
-			'meta_data' => [
-				__( 'Detalle', 'tcg-manager' ) => implode( ' | ', $labels ),
-			],
+			'label' => $label,
+			'cost'  => $cost,
 		] );
 	}
 
@@ -85,8 +61,6 @@ class TCG_Shipping extends WC_Shipping_Method {
 	 * Determine if a state code is Lima Metropolitana.
 	 */
 	private function is_lima( $state ) {
-		// WooCommerce Peru states: LIM = Lima (department), LMA = Lima Metropolitana (province).
-		// Both should be treated as "Lima" for shipping purposes.
 		return in_array( strtoupper( $state ), [ 'LIM', 'LMA' ], true );
 	}
 
@@ -115,17 +89,6 @@ class TCG_Shipping extends WC_Shipping_Method {
 
 		return '';
 	}
-
-	/**
-	 * Build label with vendor name and optional delivery time.
-	 */
-	private function build_label( $vendor_name, $days ) {
-		$label = sprintf( __( 'Envío — %s', 'tcg-manager' ), $vendor_name );
-		if ( $days ) {
-			$label .= ' (' . $days . ')';
-		}
-		return $label;
-	}
 }
 
 /**
@@ -135,3 +98,65 @@ add_filter( 'woocommerce_shipping_methods', function( $methods ) {
 	$methods['tcg_vendor_shipping'] = 'TCG_Shipping';
 	return $methods;
 } );
+
+/**
+ * Split cart into one shipping package per vendor.
+ *
+ * WooCommerce displays each package separately at checkout, so the customer
+ * sees individual shipping costs and delivery times per vendor.
+ */
+add_filter( 'woocommerce_cart_shipping_packages', function( $packages ) {
+	// Only split if there's a default package with items.
+	if ( empty( $packages ) ) return $packages;
+
+	// Collect all items from all existing packages.
+	$all_items = [];
+	$base_package = $packages[0];
+	foreach ( $packages as $pkg ) {
+		foreach ( $pkg['contents'] as $key => $item ) {
+			$all_items[ $key ] = $item;
+		}
+	}
+
+	if ( empty( $all_items ) ) return $packages;
+
+	// Group by vendor.
+	$vendor_items = [];
+	foreach ( $all_items as $key => $item ) {
+		$vendor_id = (int) get_post_field( 'post_author', $item['product_id'] );
+		if ( ! $vendor_id ) $vendor_id = 0;
+		$vendor_items[ $vendor_id ][ $key ] = $item;
+	}
+
+	// If single vendor, no need to split.
+	if ( count( $vendor_items ) <= 1 ) {
+		$vendor_id = array_key_first( $vendor_items );
+		$packages[0]['tcg_vendor_id'] = $vendor_id;
+		$packages[0]['tcg_vendor_name'] = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		return $packages;
+	}
+
+	// Build one package per vendor.
+	$new_packages = [];
+	foreach ( $vendor_items as $vendor_id => $items ) {
+		$pkg = $base_package;
+		$pkg['contents']        = $items;
+		$pkg['contents_cost']   = array_sum( wp_list_pluck( $items, 'line_total' ) );
+		$pkg['tcg_vendor_id']   = $vendor_id;
+		$pkg['tcg_vendor_name'] = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$new_packages[] = $pkg;
+	}
+
+	return $new_packages;
+} );
+
+/**
+ * Customize the shipping package name shown at checkout.
+ * Instead of "Shipping", show "Envío — Vendor Name".
+ */
+add_filter( 'woocommerce_shipping_package_name', function( $name, $index, $package ) {
+	if ( ! empty( $package['tcg_vendor_name'] ) ) {
+		return sprintf( __( 'Envío — %s', 'tcg-manager' ), $package['tcg_vendor_name'] );
+	}
+	return $name;
+}, 10, 3 );
