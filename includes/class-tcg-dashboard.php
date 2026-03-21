@@ -5,7 +5,7 @@ class TCG_Dashboard {
 
 	private static $sections = [
 		'home', 'products', 'new-product', 'edit-product',
-		'orders', 'order-view', 'earnings', 'profile',
+		'orders', 'order-view', 'shipping', 'earnings', 'profile',
 	];
 
 	public function __construct() {
@@ -156,6 +156,7 @@ class TCG_Dashboard {
 			'home'     => [ 'label' => __( 'Inicio', 'tcg-manager' ),    'icon' => 'dashicons-admin-home' ],
 			'products' => [ 'label' => __( 'Productos', 'tcg-manager' ), 'icon' => 'dashicons-products' ],
 			'orders'   => [ 'label' => __( 'Pedidos', 'tcg-manager' ),   'icon' => 'dashicons-list-view' ],
+			'shipping' => [ 'label' => __( 'Envío', 'tcg-manager' ),     'icon' => 'dashicons-car' ],
 			'earnings' => [ 'label' => __( 'Ganancias', 'tcg-manager' ), 'icon' => 'dashicons-chart-line' ],
 			'profile'  => [ 'label' => __( 'Perfil', 'tcg-manager' ),    'icon' => 'dashicons-admin-users' ],
 		];
@@ -194,6 +195,7 @@ class TCG_Dashboard {
 				'product_saved'   => __( 'Producto guardado correctamente.', 'tcg-manager' ),
 				'product_deleted' => __( 'Producto eliminado.', 'tcg-manager' ),
 				'profile_saved'   => __( 'Perfil actualizado.', 'tcg-manager' ),
+				'shipping_saved'  => __( 'Tarifas de envío actualizadas.', 'tcg-manager' ),
 			];
 			$key = sanitize_text_field( wp_unslash( $_GET['tcg_msg'] ) );
 			if ( isset( $messages[ $key ] ) ) {
