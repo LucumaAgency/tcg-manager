@@ -212,6 +212,12 @@ class TCG_Product_Form {
 		// Trigger sync hook.
 		do_action( 'tcg_manager_product_saved', $product_id, $card_id );
 
+		// If onboarding, advance to step 2.
+		if ( ! empty( $_POST['tcg_onboarding'] ) ) {
+			wp_safe_redirect( TCG_Dashboard::get_dashboard_url( 'onboarding', [ 'step' => 2 ] ) );
+			exit;
+		}
+
 		wp_safe_redirect( add_query_arg( 'tcg_msg', 'product_saved', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		exit;
 	}

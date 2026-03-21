@@ -6,6 +6,7 @@ class TCG_Dashboard {
 	private static $sections = [
 		'home', 'products', 'new-product', 'edit-product',
 		'orders', 'order-view', 'shipping', 'earnings', 'profile',
+		'onboarding',
 	];
 
 	public function __construct() {
@@ -135,7 +136,24 @@ class TCG_Dashboard {
 
 		$section = self::get_current_section();
 
+		// Redirect to onboarding if not completed.
+		$onboarding_done = get_user_meta( get_current_user_id(), '_tcg_onboarding_complete', true );
+		if ( ! $onboarding_done && $section !== 'onboarding' ) {
+			$section = 'onboarding';
+		}
+
 		ob_start();
+
+		if ( $section === 'onboarding' ) {
+			?>
+			<div class="tcg-dashboard-wrap tcg-onboarding-wrap">
+				<div class="tcg-dashboard-content" style="max-width:700px;margin:0 auto;">
+					<?php $this->render_alerts(); ?>
+					<?php $this->load_template( 'onboarding' ); ?>
+				</div>
+			</div>
+			<?php
+		} else {
 		?>
 		<div class="tcg-dashboard-wrap">
 			<?php $this->render_sidebar( $section ); ?>
@@ -145,6 +163,7 @@ class TCG_Dashboard {
 			</div>
 		</div>
 		<?php
+		} // end else (not onboarding)
 		return ob_get_clean();
 	}
 
@@ -202,6 +221,7 @@ class TCG_Dashboard {
 				'product_deleted' => __( 'Producto eliminado.', 'tcg-manager' ),
 				'profile_saved'   => __( 'Perfil actualizado.', 'tcg-manager' ),
 				'shipping_saved'  => __( 'Tarifas de envío actualizadas.', 'tcg-manager' ),
+				'onboarding_done' => __( '¡Tu tienda está lista! Ya puedes empezar a vender.', 'tcg-manager' ),
 			];
 			$key = sanitize_text_field( wp_unslash( $_GET['tcg_msg'] ) );
 			if ( isset( $messages[ $key ] ) ) {
