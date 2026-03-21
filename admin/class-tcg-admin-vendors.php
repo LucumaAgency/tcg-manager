@@ -166,7 +166,7 @@ class TCG_Admin_Vendors {
 							<input type="number" name="commission_fixed" id="commission_fixed"
 								   value="<?php echo esc_attr( $vendor_fixed ); ?>"
 								   step="0.01" min="0" style="width:80px;">
-							<p class="description"><?php printf( esc_html__( 'Por unidad vendida. Dejar vacío para usar la global (%s)', 'tcg-manager' ), esc_html( wc_price( $global_fixed ) ) ); ?></p>
+							<p class="description"><?php printf( esc_html__( 'Por unidad vendida. Dejar vacío para usar la global (%s)', 'tcg-manager' ), wp_kses_post( wc_price( $global_fixed ) ) ); ?></p>
 						</td>
 					</tr>
 				</table>
