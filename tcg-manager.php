@@ -10,7 +10,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'TCG_MANAGER_VERSION', '1.1.8' );
+define( 'TCG_MANAGER_VERSION', '1.2.0' );
 define( 'TCG_MANAGER_PATH', plugin_dir_path( __FILE__ ) );
 define( 'TCG_MANAGER_URL', plugin_dir_url( __FILE__ ) );
 

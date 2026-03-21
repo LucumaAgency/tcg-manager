@@ -75,10 +75,14 @@
 	text-align: center;
 }
 
-.tcg-nav-logout {
+.tcg-nav-divider {
 	border-top: 1px solid rgba(255, 255, 255, 0.1);
 	margin-top: 8px;
 	padding-top: 8px;
+}
+
+.tcg-nav-logout {
+	margin-top: 0;
 }
 
 /* Content area

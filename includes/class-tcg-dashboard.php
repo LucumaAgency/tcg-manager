@@ -175,6 +175,12 @@ class TCG_Dashboard {
 						</a>
 					</li>
 				<?php endforeach; ?>
+				<li class="tcg-nav-item tcg-nav-divider">
+					<a href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>" class="tcg-nav-link">
+						<span class="dashicons dashicons-cart tcg-nav-icon"></span>
+						<?php esc_html_e( 'Mi cuenta comprador', 'tcg-manager' ); ?>
+					</a>
+				</li>
 				<li class="tcg-nav-item tcg-nav-logout">
 					<a href="<?php echo esc_url( wp_logout_url( home_url() ) ); ?>" class="tcg-nav-link">
 						<span class="dashicons dashicons-exit tcg-nav-icon"></span>
@@ -560,7 +566,8 @@ class TCG_Dashboard {
 		}
 
 		$user = new WP_User( $user_id );
-		$user->set_role( 'tcg_vendor' );
+		$user->set_role( 'customer' );
+		$user->add_role( 'tcg_vendor' );
 
 		update_user_meta( $user_id, '_tcg_shop_name', $shop_name );
 		update_user_meta( $user_id, '_tcg_shop_slug', sanitize_title( $shop_name ) );
