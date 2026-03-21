@@ -585,4 +585,42 @@
 		grid-template-columns: repeat(2, 1fr);
 		gap: 12px;
 	}
+
+	.tcg-shipping-fields {
+		flex-direction: column;
+	}
+}
+
+/* Shipping fields
+   ========================================================================== */
+
+.tcg-shipping-zone {
+	margin-bottom: 16px;
+}
+
+.tcg-shipping-fields {
+	display: flex;
+	gap: 16px;
+	align-items: center;
+	margin-top: 6px;
+}
+
+.tcg-shipping-field {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.tcg-shipping-field input[type="number"] {
+	width: 80px;
+}
+
+.tcg-shipping-prefix {
+	font-weight: 600;
+	color: #555;
+}
+
+.tcg-shipping-days span {
+	color: #666;
+	font-size: 14px;
 }

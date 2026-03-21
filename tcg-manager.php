@@ -38,6 +38,7 @@ function tcg_manager_check_plugins() {
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-ajax.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-display.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-listings.php';
+	require_once TCG_MANAGER_PATH . 'includes/class-tcg-shipping.php';
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-commissions.php';
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-vendors.php';
 

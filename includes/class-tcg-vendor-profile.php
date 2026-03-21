@@ -41,6 +41,12 @@ class TCG_Vendor_Profile {
 			'_tcg_shop_description' => 'string',
 			'_tcg_payment_info'     => 'string',
 			'_tcg_commission_rate'  => 'string',
+			'_tcg_shipping_lima_price'       => 'string',
+			'_tcg_shipping_lima_days_min'    => 'string',
+			'_tcg_shipping_lima_days_max'    => 'string',
+			'_tcg_shipping_provincia_price'    => 'string',
+			'_tcg_shipping_provincia_days_min' => 'string',
+			'_tcg_shipping_provincia_days_max' => 'string',
 		];
 
 		foreach ( $fields as $key => $type ) {
