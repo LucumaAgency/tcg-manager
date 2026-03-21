@@ -26,10 +26,9 @@ class TCG_Vendor_Profile {
 
 		add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_store_css' ] );
 
-		// WooCommerce My Account — vendor dashboard tab.
+		// WooCommerce My Account — vendor dashboard link.
 		add_filter( 'woocommerce_account_menu_items', [ $this, 'add_myaccount_vendor_tab' ] );
-		add_action( 'woocommerce_account_vendor-dashboard_endpoint', [ $this, 'myaccount_vendor_redirect' ] );
-		add_action( 'init', [ $this, 'register_myaccount_endpoint' ] );
+		add_filter( 'woocommerce_get_endpoint_url', [ $this, 'vendor_tab_url' ], 10, 2 );
 
 		// Bricks Query Loop integration.
 		if ( defined( 'BRICKS_VERSION' ) ) {
@@ -428,16 +427,11 @@ class TCG_Vendor_Profile {
 
 	/* ─── WooCommerce My Account vendor tab ─── */
 
-	public function register_myaccount_endpoint() {
-		add_rewrite_endpoint( 'vendor-dashboard', EP_ROOT | EP_PAGES );
-	}
-
 	public function add_myaccount_vendor_tab( $items ) {
 		if ( ! TCG_Vendor_Role::is_vendor() ) {
 			return $items;
 		}
 
-		// Insert before "customer-logout".
 		$new_items = [];
 		foreach ( $items as $key => $label ) {
 			if ( $key === 'customer-logout' ) {
@@ -448,9 +442,11 @@ class TCG_Vendor_Profile {
 		return $new_items;
 	}
 
-	public function myaccount_vendor_redirect() {
-		wp_safe_redirect( TCG_Dashboard::get_dashboard_url() );
-		exit;
+	public function vendor_tab_url( $url, $endpoint ) {
+		if ( $endpoint === 'vendor-dashboard' ) {
+			return TCG_Dashboard::get_dashboard_url();
+		}
+		return $url;
 	}
 
 	/* ─── Static helpers ─── */
