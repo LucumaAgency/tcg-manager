@@ -128,7 +128,28 @@ class TCG_Admin_Vendors {
 					</tr>
 					<tr>
 						<th><?php esc_html_e( 'Info de pago', 'tcg-manager' ); ?></th>
-						<td><?php echo $data['payment_info'] ? nl2br( esc_html( $data['payment_info'] ) ) : '—'; ?></td>
+						<td>
+							<?php
+							$pay_fields = [
+								'Yape'      => get_user_meta( $vendor_id, '_tcg_pay_yape', true ),
+								'Plin'      => get_user_meta( $vendor_id, '_tcg_pay_plin', true ),
+								'Interbank' => get_user_meta( $vendor_id, '_tcg_pay_interbank', true ),
+								'Interbank CCI' => get_user_meta( $vendor_id, '_tcg_pay_interbank_cci', true ),
+								'BCP'       => get_user_meta( $vendor_id, '_tcg_pay_bcp', true ),
+								'BCP CCI'   => get_user_meta( $vendor_id, '_tcg_pay_bcp_cci', true ),
+								'BBVA'      => get_user_meta( $vendor_id, '_tcg_pay_bbva', true ),
+								'BBVA CCI'  => get_user_meta( $vendor_id, '_tcg_pay_bbva_cci', true ),
+							];
+							$has_any = false;
+							foreach ( $pay_fields as $label => $value ) {
+								if ( $value ) {
+									echo '<strong>' . esc_html( $label ) . ':</strong> ' . esc_html( $value ) . '<br>';
+									$has_any = true;
+								}
+							}
+							if ( ! $has_any ) echo '—';
+							?>
+						</td>
 					</tr>
 					<tr>
 						<th><label for="commission_rate"><?php esc_html_e( 'Comisión porcentual (%)', 'tcg-manager' ); ?></label></th>

@@ -624,3 +624,31 @@
 	color: #666;
 	font-size: 14px;
 }
+
+/* Payment fields
+   ========================================================================== */
+
+.tcg-payment-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.tcg-payment-bank {
+	margin-bottom: 16px;
+}
+
+.tcg-payment-bank-fields {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-top: 6px;
+}
+
+@media (max-width: 600px) {
+	.tcg-payment-grid,
+	.tcg-payment-bank-fields {
+		grid-template-columns: 1fr;
+	}
+}
