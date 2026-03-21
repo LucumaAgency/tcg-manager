@@ -53,6 +53,25 @@ if ( ! $order || (int) $order->get_meta( '_tcg_vendor_id' ) !== $vendor_id ) {
 		</tbody>
 	</table>
 
+	<!-- Tracking -->
+	<h3><?php esc_html_e( 'Seguimiento', 'tcg-manager' ); ?></h3>
+	<?php $tracking = $order->get_meta( '_tcg_tracking' ); ?>
+	<div class="tcg-tracking-wrap">
+		<div class="tcg-shipping-fields">
+			<input type="text" id="tcg-tracking-input" class="tcg-form-control" style="flex:1;"
+				   value="<?php echo esc_attr( $tracking ); ?>"
+				   placeholder="<?php esc_attr_e( 'Código o link de rastreo', 'tcg-manager' ); ?>">
+			<button type="button" id="tcg-tracking-save" class="tcg-btn tcg-btn-primary"
+					data-order-id="<?php echo esc_attr( $order->get_id() ); ?>"
+					data-nonce="<?php echo esc_attr( wp_create_nonce( 'tcg_save_tracking' ) ); ?>">
+				<?php esc_html_e( 'Guardar', 'tcg-manager' ); ?>
+			</button>
+		</div>
+		<?php if ( $tracking && filter_var( $tracking, FILTER_VALIDATE_URL ) ) : ?>
+			<p style="margin-top:6px;"><a href="<?php echo esc_url( $tracking ); ?>" target="_blank"><?php esc_html_e( 'Ver seguimiento', 'tcg-manager' ); ?> &rarr;</a></p>
+		<?php endif; ?>
+	</div>
+
 	<!-- Shipping info -->
 	<h3><?php esc_html_e( 'Datos de envío', 'tcg-manager' ); ?></h3>
 	<div class="tcg-order-address">

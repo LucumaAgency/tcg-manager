@@ -8,6 +8,7 @@ class TCG_Ajax {
 		add_action( 'wp_ajax_tcg_get_ygo_card_data', [ $this, 'get_card_data' ] );
 		add_action( 'wp_ajax_tcg_add_to_cart', [ $this, 'add_to_cart' ] );
 		add_action( 'wp_ajax_nopriv_tcg_add_to_cart', [ $this, 'add_to_cart' ] );
+		add_action( 'wp_ajax_tcg_save_tracking', [ $this, 'save_tracking' ] );
 	}
 
 	public function search_cards() {
@@ -98,6 +99,28 @@ class TCG_Ajax {
 			'meta'        => $meta,
 			'taxonomies'  => $taxonomies,
 		] );
+	}
+
+	public function save_tracking() {
+		check_ajax_referer( 'tcg_save_tracking', 'nonce' );
+
+		$order_id = absint( $_POST['order_id'] ?? 0 );
+		$tracking = sanitize_text_field( $_POST['tracking'] ?? '' );
+
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			wp_send_json_error( __( 'Pedido no encontrado.', 'tcg-manager' ) );
+		}
+
+		// Verify vendor owns this order.
+		if ( (int) $order->get_meta( '_tcg_vendor_id' ) !== get_current_user_id() ) {
+			wp_send_json_error( __( 'No tienes permiso.', 'tcg-manager' ) );
+		}
+
+		$order->update_meta_data( '_tcg_tracking', $tracking );
+		$order->save();
+
+		wp_send_json_success( [ 'tracking' => $tracking ] );
 	}
 
 	public function add_to_cart() {

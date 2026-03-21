@@ -5,6 +5,42 @@ class TCG_Orders {
 
 	public function __construct() {
 		add_action( 'woocommerce_checkout_order_created', [ $this, 'split_order' ] );
+
+		// Show tracking in WooCommerce admin order page.
+		add_action( 'woocommerce_admin_order_data_after_shipping_address', [ $this, 'admin_show_tracking' ] );
+	}
+
+	/**
+	 * Display tracking info in WooCommerce admin order detail.
+	 */
+	public function admin_show_tracking( $order ) {
+		$tracking = $order->get_meta( '_tcg_tracking' );
+		$vendor_id = $order->get_meta( '_tcg_vendor_id' );
+
+		if ( ! $vendor_id ) return;
+
+		$vendor_name = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		?>
+		<div class="order_data_column" style="margin-top:12px;">
+			<h3><?php esc_html_e( 'Vendedor & Seguimiento', 'tcg-manager' ); ?></h3>
+			<p>
+				<strong><?php esc_html_e( 'Vendedor:', 'tcg-manager' ); ?></strong>
+				<?php echo esc_html( $vendor_name ); ?>
+			</p>
+			<p>
+				<strong><?php esc_html_e( 'Tracking:', 'tcg-manager' ); ?></strong>
+				<?php if ( $tracking ) : ?>
+					<?php if ( filter_var( $tracking, FILTER_VALIDATE_URL ) ) : ?>
+						<a href="<?php echo esc_url( $tracking ); ?>" target="_blank"><?php echo esc_html( $tracking ); ?></a>
+					<?php else : ?>
+						<?php echo esc_html( $tracking ); ?>
+					<?php endif; ?>
+				<?php else : ?>
+					<em><?php esc_html_e( 'No proporcionado', 'tcg-manager' ); ?></em>
+				<?php endif; ?>
+			</p>
+		</div>
+		<?php
 	}
 
 	/**
