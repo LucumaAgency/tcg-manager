@@ -532,16 +532,47 @@
 	margin-top: 0;
 }
 
+/* Product thumbnail
+   ========================================================================== */
+
+.tcg-product-thumb {
+	width: 40px;
+	height: 56px;
+	object-fit: cover;
+	border-radius: 4px;
+}
+
+/* Small buttons
+   ========================================================================== */
+
+.tcg-btn-sm {
+	font-size: 13px;
+	padding: 4px 10px;
+}
+
+.tcg-actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
 /* Responsive
    ========================================================================== */
 
 @media (max-width: 768px) {
 	.tcg-dashboard-wrap {
 		flex-direction: column;
+		border-radius: 0;
+		border-left: none;
+		border-right: none;
 	}
 
 	.tcg-dashboard-sidebar {
 		width: 100%;
+	}
+
+	.tcg-sidebar-header {
+		padding: 12px 16px;
 	}
 
 	.tcg-nav-menu {
@@ -549,6 +580,12 @@
 		overflow-x: auto;
 		padding: 0;
 		gap: 0;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+	}
+
+	.tcg-nav-menu::-webkit-scrollbar {
+		display: none;
 	}
 
 	.tcg-nav-link {
@@ -559,6 +596,13 @@
 
 	.tcg-nav-icon {
 		display: none;
+	}
+
+	.tcg-nav-divider {
+		border-top: none;
+		margin-top: 0;
+		padding-top: 0;
+		border-left: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
 	.tcg-nav-logout {
@@ -572,17 +616,162 @@
 		padding: 16px;
 	}
 
+	.tcg-dashboard-content h2 {
+		font-size: 18px;
+	}
+
 	.tcg-dashboard-stats {
 		grid-template-columns: repeat(2, 1fr);
+		gap: 10px;
 	}
 
-	.tcg-table {
-		font-size: 13px;
+	.tcg-stat-value {
+		font-size: 20px;
 	}
 
-	.tcg-table thead th,
-	.tcg-table tbody td {
-		padding: 8px 6px;
+	.tcg-stat-label {
+		font-size: 12px;
+	}
+
+	/* Products table → stacked cards */
+	.tcg-table-products thead {
+		display: none;
+	}
+
+	.tcg-table-products tbody tr {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 4px 12px;
+		padding: 12px;
+		border: 1px solid #e9ecef;
+		border-radius: 8px;
+		margin-bottom: 10px;
+		background: #fff;
+	}
+
+	.tcg-table-products tbody tr:hover {
+		background: #fff;
+	}
+
+	.tcg-table-products tbody td {
+		border: none;
+		padding: 2px 0;
+		font-size: 14px;
+	}
+
+	.tcg-table-products tbody td::before {
+		content: attr(data-label);
+		font-weight: 600;
+		color: #666;
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	/* Image cell: spans left column across rows */
+	.tcg-table-products tbody td:first-child {
+		grid-row: 1 / span 3;
+		display: flex;
+		align-items: center;
+	}
+
+	.tcg-table-products tbody td:first-child::before {
+		display: none;
+	}
+
+	.tcg-table-products .tcg-product-thumb {
+		width: 50px;
+		height: 70px;
+	}
+
+	/* Other cells stack in right column */
+	.tcg-table-products tbody td:not(:first-child) {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	/* Actions: full width at bottom */
+	.tcg-table-products tbody td:last-child {
+		grid-column: 1 / -1;
+		padding-top: 8px;
+		margin-top: 4px;
+		border-top: 1px solid #f0f0f0;
+	}
+
+	.tcg-table-products tbody td:last-child::before {
+		display: none;
+	}
+
+	.tcg-actions {
+		width: 100%;
+	}
+
+	.tcg-actions .tcg-btn {
+		flex: 1;
+		text-align: center;
+	}
+
+	/* Orders & earnings tables → stacked cards */
+	.tcg-table-orders thead,
+	.tcg-table-earnings thead {
+		display: none;
+	}
+
+	.tcg-table-orders tbody tr,
+	.tcg-table-earnings tbody tr {
+		display: block;
+		padding: 12px;
+		border: 1px solid #e9ecef;
+		border-radius: 8px;
+		margin-bottom: 10px;
+		background: #fff;
+	}
+
+	.tcg-table-orders tbody tr:hover,
+	.tcg-table-earnings tbody tr:hover {
+		background: #fff;
+	}
+
+	.tcg-table-orders tbody td,
+	.tcg-table-earnings tbody td {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		border: none;
+		padding: 4px 0;
+		font-size: 14px;
+	}
+
+	.tcg-table-orders tbody td::before,
+	.tcg-table-earnings tbody td::before {
+		content: attr(data-label);
+		font-weight: 600;
+		color: #666;
+		font-size: 12px;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		margin-right: 12px;
+	}
+
+	.tcg-table-orders tbody td:last-child,
+	.tcg-table-earnings tbody td:last-child {
+		padding-top: 8px;
+		margin-top: 4px;
+		border-top: 1px solid #f0f0f0;
+	}
+
+	/* Generic tables without stacked class: horizontal scroll */
+	.tcg-table-responsive {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	/* Filters row */
+	.tcg-filters {
+		display: flex;
+		gap: 8px;
+		flex-wrap: wrap;
 	}
 
 	.tcg-store-products {
@@ -590,8 +779,53 @@
 		gap: 12px;
 	}
 
+	.tcg-store-header {
+		flex-direction: column;
+		text-align: center;
+	}
+
+	.tcg-store-name {
+		font-size: 22px;
+	}
+
 	.tcg-shipping-fields {
 		flex-direction: column;
+	}
+
+	.tcg-form-actions {
+		flex-direction: column;
+	}
+
+	.tcg-form-actions .tcg-btn {
+		text-align: center;
+	}
+
+	.tcg-pagination .page-numbers {
+		padding: 8px 12px;
+	}
+}
+
+@media (max-width: 480px) {
+	.tcg-dashboard-content {
+		padding: 12px;
+	}
+
+	.tcg-dashboard-stats {
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
+	}
+
+	.tcg-stat-box {
+		padding: 12px 8px;
+	}
+
+	.tcg-stat-value {
+		font-size: 18px;
+	}
+
+	.tcg-store-products {
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
 	}
 }
 

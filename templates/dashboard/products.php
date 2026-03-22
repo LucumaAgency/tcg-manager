@@ -23,7 +23,7 @@ $query = new WP_Query( [
 <?php if ( ! $query->have_posts() ) : ?>
 	<p><?php esc_html_e( 'No tienes productos aún.', 'tcg-manager' ); ?></p>
 <?php else : ?>
-<table class="tcg-table">
+<table class="tcg-table tcg-table-products">
 	<thead><tr>
 		<th><?php esc_html_e( 'Imagen', 'tcg-manager' ); ?></th>
 		<th><?php esc_html_e( 'Nombre', 'tcg-manager' ); ?></th>
@@ -39,19 +39,21 @@ $query = new WP_Query( [
 		$thumb = get_the_post_thumbnail_url( get_the_ID(), 'thumbnail' );
 		?>
 		<tr>
-			<td><?php if ( $thumb ) : ?><img src="<?php echo esc_url( $thumb ); ?>" alt="" style="width:40px;height:56px;object-fit:cover;border-radius:4px;"><?php endif; ?></td>
-			<td><?php echo esc_html( get_the_title() ); ?></td>
-			<td><?php echo wp_kses_post( $product->get_price_html() ); ?></td>
-			<td><?php echo esc_html( $product->get_stock_quantity() ?? '—' ); ?></td>
-			<td><span class="tcg-badge tcg-badge-<?php echo esc_attr( get_post_status() ); ?>"><?php echo esc_html( ucfirst( get_post_status() ) ); ?></span></td>
-			<td>
-				<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'edit-product', [ 'tcg-id' => get_the_ID() ] ) ); ?>" class="tcg-btn tcg-btn-secondary" style="font-size:13px;padding:4px 10px;">
-					<?php esc_html_e( 'Editar', 'tcg-manager' ); ?>
-				</a>
-				<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'tcg_action' => 'delete_product', 'product_id' => get_the_ID() ] ), 'tcg_delete_' . get_the_ID() ) ); ?>"
-				   class="tcg-btn tcg-btn-danger tcg-delete-product" style="font-size:13px;padding:4px 10px;">
-					<?php esc_html_e( 'Eliminar', 'tcg-manager' ); ?>
-				</a>
+			<td data-label="<?php esc_attr_e( 'Imagen', 'tcg-manager' ); ?>"><?php if ( $thumb ) : ?><img src="<?php echo esc_url( $thumb ); ?>" alt="" class="tcg-product-thumb"><?php endif; ?></td>
+			<td data-label="<?php esc_attr_e( 'Nombre', 'tcg-manager' ); ?>"><?php echo esc_html( get_the_title() ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Precio', 'tcg-manager' ); ?>"><?php echo wp_kses_post( $product->get_price_html() ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Stock', 'tcg-manager' ); ?>"><?php echo esc_html( $product->get_stock_quantity() ?? '—' ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Estado', 'tcg-manager' ); ?>"><span class="tcg-badge tcg-badge-<?php echo esc_attr( get_post_status() ); ?>"><?php echo esc_html( ucfirst( get_post_status() ) ); ?></span></td>
+			<td data-label="<?php esc_attr_e( 'Acciones', 'tcg-manager' ); ?>">
+				<div class="tcg-actions">
+					<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'edit-product', [ 'tcg-id' => get_the_ID() ] ) ); ?>" class="tcg-btn tcg-btn-secondary tcg-btn-sm">
+						<?php esc_html_e( 'Editar', 'tcg-manager' ); ?>
+					</a>
+					<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'tcg_action' => 'delete_product', 'product_id' => get_the_ID() ] ), 'tcg_delete_' . get_the_ID() ) ); ?>"
+					   class="tcg-btn tcg-btn-danger tcg-btn-sm tcg-delete-product">
+						<?php esc_html_e( 'Eliminar', 'tcg-manager' ); ?>
+					</a>
+				</div>
 			</td>
 		</tr>
 	<?php endwhile; wp_reset_postdata(); ?>

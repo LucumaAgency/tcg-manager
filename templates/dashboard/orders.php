@@ -44,7 +44,8 @@ $pages  = ceil( $total / 20 );
 <?php if ( empty( $orders ) ) : ?>
 	<p><?php esc_html_e( 'No tienes pedidos aún.', 'tcg-manager' ); ?></p>
 <?php else : ?>
-<table class="tcg-table">
+<div class="tcg-table-responsive">
+<table class="tcg-table tcg-table-orders">
 	<thead><tr>
 		<th><?php esc_html_e( 'Pedido', 'tcg-manager' ); ?></th>
 		<th><?php esc_html_e( 'Fecha', 'tcg-manager' ); ?></th>
@@ -56,13 +57,13 @@ $pages  = ceil( $total / 20 );
 	<tbody>
 	<?php foreach ( $orders as $order ) : ?>
 		<tr>
-			<td>#<?php echo esc_html( $order->get_id() ); ?></td>
-			<td><?php echo esc_html( $order->get_date_created()->date_i18n( 'd/m/Y' ) ); ?></td>
-			<td><?php echo esc_html( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ); ?></td>
-			<td><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></td>
-			<td><span class="tcg-badge tcg-badge-<?php echo esc_attr( $order->get_status() ); ?>"><?php echo esc_html( wc_get_order_status_name( $order->get_status() ) ); ?></span></td>
-			<td>
-				<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'order-view', [ 'tcg-id' => $order->get_id() ] ) ); ?>" class="tcg-btn tcg-btn-secondary" style="font-size:13px;padding:4px 10px;">
+			<td data-label="<?php esc_attr_e( 'Pedido', 'tcg-manager' ); ?>">#<?php echo esc_html( $order->get_id() ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Fecha', 'tcg-manager' ); ?>"><?php echo esc_html( $order->get_date_created()->date_i18n( 'd/m/Y' ) ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Cliente', 'tcg-manager' ); ?>"><?php echo esc_html( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Total', 'tcg-manager' ); ?>"><?php echo wp_kses_post( $order->get_formatted_order_total() ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Estado', 'tcg-manager' ); ?>"><span class="tcg-badge tcg-badge-<?php echo esc_attr( $order->get_status() ); ?>"><?php echo esc_html( wc_get_order_status_name( $order->get_status() ) ); ?></span></td>
+			<td data-label="<?php esc_attr_e( 'Acciones', 'tcg-manager' ); ?>">
+				<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'order-view', [ 'tcg-id' => $order->get_id() ] ) ); ?>" class="tcg-btn tcg-btn-secondary tcg-btn-sm">
 					<?php esc_html_e( 'Ver', 'tcg-manager' ); ?>
 				</a>
 			</td>
@@ -70,6 +71,7 @@ $pages  = ceil( $total / 20 );
 	<?php endforeach; ?>
 	</tbody>
 </table>
+</div>
 
 <?php if ( $pages > 1 ) : ?>
 	<div class="tcg-pagination">
