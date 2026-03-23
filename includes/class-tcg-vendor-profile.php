@@ -77,9 +77,18 @@ class TCG_Vendor_Profile {
 		if ( $page_id ) {
 			$slug = get_page_uri( $page_id );
 			if ( $slug ) {
+				$escaped = preg_quote( $slug, '/' );
+
+				// /tienda-vendedor/{vendor-slug}/page/{n}/ -> paginated store page.
+				add_rewrite_rule(
+					'^' . $escaped . '/([^/]+)/page/([0-9]+)/?$',
+					'index.php?page_id=' . $page_id . '&tcg_vendor_store=$matches[1]&paged=$matches[2]',
+					'top'
+				);
+
 				// /tienda-vendedor/{vendor-slug}/ -> loads the store page with vendor context.
 				add_rewrite_rule(
-					'^' . preg_quote( $slug, '/' ) . '/([^/]+)/?$',
+					'^' . $escaped . '/([^/]+)/?$',
 					'index.php?page_id=' . $page_id . '&tcg_vendor_store=$matches[1]',
 					'top'
 				);
