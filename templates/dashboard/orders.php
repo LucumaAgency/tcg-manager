@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 $vendor_id = get_current_user_id();
-$paged     = max( 1, absint( $_GET['paged'] ?? 1 ) );
+$paged     = max( 1, absint( get_query_var( 'paged', $_GET['paged'] ?? 1 ) ) );
 $status    = sanitize_text_field( $_GET['status'] ?? '' );
 
 $args = [
@@ -76,7 +76,7 @@ $pages  = ceil( $total / 20 );
 <?php if ( $pages > 1 ) : ?>
 	<div class="tcg-pagination">
 		<?php echo paginate_links( [
-			'base'    => add_query_arg( 'paged', '%#%' ),
+			'base'    => trailingslashit( TCG_Dashboard::get_dashboard_url( 'orders' ) ) . 'page/%#%/',
 			'format'  => '',
 			'current' => $paged,
 			'total'   => $pages,

@@ -1,7 +1,7 @@
 <?php
 defined( 'ABSPATH' ) || exit;
 $vendor_id = get_current_user_id();
-$paged     = max( 1, absint( $_GET['paged'] ?? 1 ) );
+$paged     = max( 1, absint( get_query_var( 'paged', $_GET['paged'] ?? 1 ) ) );
 
 $query = new WP_Query( [
 	'post_type'      => 'product',
@@ -63,7 +63,7 @@ $query = new WP_Query( [
 <?php if ( $query->max_num_pages > 1 ) : ?>
 	<div class="tcg-pagination">
 		<?php echo paginate_links( [
-			'base'    => add_query_arg( 'paged', '%#%' ),
+			'base'    => trailingslashit( TCG_Dashboard::get_dashboard_url( 'products' ) ) . 'page/%#%/',
 			'format'  => '',
 			'current' => $paged,
 			'total'   => $query->max_num_pages,

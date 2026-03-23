@@ -40,8 +40,18 @@ class TCG_Dashboard {
 			return;
 		}
 
+		$escaped = preg_quote( $slug, '/' );
+
+		// /dashboard/{section}/page/{n}/
 		add_rewrite_rule(
-			'^' . preg_quote( $slug, '/' ) . '/([^/]+)/?$',
+			'^' . $escaped . '/([^/]+)/page/([0-9]+)/?$',
+			'index.php?page_id=' . $page_id . '&tcg-section=$matches[1]&paged=$matches[2]',
+			'top'
+		);
+
+		// /dashboard/{section}/
+		add_rewrite_rule(
+			'^' . $escaped . '/([^/]+)/?$',
 			'index.php?page_id=' . $page_id . '&tcg-section=$matches[1]',
 			'top'
 		);
