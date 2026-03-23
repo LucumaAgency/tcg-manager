@@ -14,6 +14,7 @@ class TCG_Dashboard {
 		add_shortcode( 'tcg_register', [ $this, 'render_register' ] );
 		$this->add_rewrite_rules(); // Run immediately — we're already in init.
 		add_filter( 'query_vars', [ $this, 'add_query_vars' ] );
+		add_action( 'wp', [ $this, 'fix_dashboard_pagination' ] );
 		add_action( 'template_redirect', [ $this, 'process_registration' ] );
 		add_action( 'template_redirect', [ $this, 'process_customer_registration' ] );
 		add_action( 'template_redirect', [ $this, 'process_login' ] );
@@ -107,6 +108,21 @@ class TCG_Dashboard {
 	public static function is_dashboard_page() {
 		$page_id = self::get_dashboard_page_id();
 		return $page_id && is_page( $page_id );
+	}
+
+	/**
+	 * Prevent 404 on dashboard pages with ?paged=N.
+	 * WordPress treats paged > 1 on a singular page as 404.
+	 */
+	public function fix_dashboard_pagination() {
+		global $wp_query;
+
+		if ( $wp_query->is_404 && self::get_dashboard_page_id() && get_query_var( 'paged' ) > 1 ) {
+			$wp_query->is_404 = false;
+			$wp_query->is_page = true;
+			$wp_query->is_singular = true;
+			status_header( 200 );
+		}
 	}
 
 	/**
