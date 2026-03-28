@@ -45,8 +45,9 @@ class TCG_Listings {
 		return ob_get_clean();
 	}
 
-	public function render_shortcode_card_price() {
-		$card_id = get_the_ID();
+	public function render_shortcode_card_price( $atts = [] ) {
+		$atts    = shortcode_atts( [ 'card_id' => '' ], $atts );
+		$card_id = ! empty( $atts['card_id'] ) ? absint( $atts['card_id'] ) : get_the_ID();
 		if ( ! $card_id || get_post_type( $card_id ) !== 'ygo_card' ) return '';
 		$listings = $this->get_ranked_listings_for( $card_id );
 		if ( empty( $listings ) ) {
