@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 class TCG_Dashboard {
 
 	private static $sections = [
-		'home', 'products', 'new-product', 'edit-product',
+		'home', 'products', 'new-product', 'edit-product', 'bulk-add',
 		'orders', 'order-view', 'shipping', 'earnings', 'profile',
 		'onboarding',
 	];
@@ -200,6 +200,7 @@ class TCG_Dashboard {
 		$nav_items = [
 			'home'     => [ 'label' => __( 'Inicio', 'tcg-manager' ),    'icon' => 'dashicons-admin-home' ],
 			'products' => [ 'label' => __( 'Productos', 'tcg-manager' ), 'icon' => 'dashicons-products' ],
+			'bulk-add' => [ 'label' => __( 'Agregar por Set', 'tcg-manager' ), 'icon' => 'dashicons-grid-view' ],
 			'orders'   => [ 'label' => __( 'Pedidos', 'tcg-manager' ),   'icon' => 'dashicons-list-view' ],
 			'shipping' => [ 'label' => __( 'Envío', 'tcg-manager' ),     'icon' => 'dashicons-car' ],
 			'earnings' => [ 'label' => __( 'Ganancias', 'tcg-manager' ), 'icon' => 'dashicons-chart-line' ],
@@ -245,6 +246,7 @@ class TCG_Dashboard {
 			$messages = [
 				'product_saved'   => __( 'Producto guardado correctamente.', 'tcg-manager' ),
 				'product_deleted' => __( 'Producto eliminado.', 'tcg-manager' ),
+				'bulk_created'    => __( 'Borradores creados. Edítalos para asignar precio, stock y condición antes de publicar.', 'tcg-manager' ),
 				'profile_saved'   => __( 'Perfil actualizado.', 'tcg-manager' ),
 				'shipping_saved'  => __( 'Tarifas de envío actualizadas.', 'tcg-manager' ),
 				'onboarding_done' => __( '¡Tu tienda está lista! Ya puedes empezar a vender.', 'tcg-manager' ),
@@ -309,6 +311,7 @@ class TCG_Dashboard {
 		wp_localize_script( 'tcg-dashboard', 'tcgDashboard', [
 			'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
 			'dashboardUrl'  => self::get_dashboard_url(),
+			'bulkNonce'     => wp_create_nonce( 'tcg_bulk_add' ),
 			'i18n'          => [
 				'confirmDelete' => __( '¿Seguro que quieres eliminar este producto?', 'tcg-manager' ),
 			],

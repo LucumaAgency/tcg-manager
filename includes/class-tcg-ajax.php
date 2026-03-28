@@ -9,6 +9,7 @@ class TCG_Ajax {
 		add_action( 'wp_ajax_tcg_add_to_cart', [ $this, 'add_to_cart' ] );
 		add_action( 'wp_ajax_nopriv_tcg_add_to_cart', [ $this, 'add_to_cart' ] );
 		add_action( 'wp_ajax_tcg_save_tracking', [ $this, 'save_tracking' ] );
+		add_action( 'wp_ajax_tcg_get_cards_by_set', [ $this, 'get_cards_by_set' ] );
 	}
 
 	public function search_cards() {
@@ -121,6 +122,44 @@ class TCG_Ajax {
 		$order->save();
 
 		wp_send_json_success( [ 'tracking' => $tracking ] );
+	}
+
+	public function get_cards_by_set() {
+		check_ajax_referer( 'tcg_bulk_add', 'nonce' );
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			wp_send_json_error( 'Not a vendor' );
+		}
+
+		$term_id = isset( $_GET['term_id'] ) ? absint( $_GET['term_id'] ) : 0;
+		if ( ! $term_id ) {
+			wp_send_json_error( 'Invalid term' );
+		}
+
+		$query = new WP_Query( [
+			'post_type'      => 'ygo_card',
+			'post_status'    => 'publish',
+			'posts_per_page' => 200,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'tax_query'      => [ [
+				'taxonomy' => 'ygo_set',
+				'field'    => 'term_id',
+				'terms'    => $term_id,
+			] ],
+		] );
+
+		$cards = [];
+		foreach ( $query->posts as $post ) {
+			$cards[] = [
+				'id'       => $post->ID,
+				'title'    => $post->post_title,
+				'thumb'    => get_the_post_thumbnail_url( $post->ID, 'thumbnail' ) ?: '',
+				'set_code' => get_post_meta( $post->ID, '_ygo_set_code', true ),
+			];
+		}
+
+		wp_send_json_success( $cards );
 	}
 
 	public function add_to_cart() {

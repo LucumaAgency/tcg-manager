@@ -5,6 +5,7 @@ class TCG_Product_Form {
 
 	public function __construct() {
 		add_action( 'template_redirect', [ $this, 'process_form' ] );
+		add_action( 'template_redirect', [ $this, 'process_bulk_add' ] );
 		add_action( 'template_redirect', [ $this, 'process_delete' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
@@ -13,10 +14,11 @@ class TCG_Product_Form {
 	 * Render the product form.
 	 */
 	public static function render_form( $product_id = 0 ) {
-		$card_id    = 0;
-		$card_title = '';
-		$price      = '';
-		$stock      = '';
+		$card_id      = 0;
+		$card_title   = '';
+		$price        = '';
+		$stock        = '';
+		$is_draft     = false;
 		$condition   = [];
 		$printing    = [];
 		$language    = [];
@@ -34,6 +36,7 @@ class TCG_Product_Form {
 			$card_title = $card_id ? get_the_title( $card_id ) : '';
 			$price      = $product ? $product->get_regular_price() : '';
 			$stock      = $product ? $product->get_stock_quantity() : '';
+			$is_draft   = $product_post->post_status === 'draft';
 
 			$condition = wp_get_post_terms( $product_id, 'ygo_condition', [ 'fields' => 'ids' ] );
 			$printing  = wp_get_post_terms( $product_id, 'ygo_printing', [ 'fields' => 'ids' ] );
@@ -123,10 +126,19 @@ class TCG_Product_Form {
 
 			<div class="tcg-form-actions">
 				<button type="submit" class="tcg-btn tcg-btn-primary">
-					<?php echo $product_id
-						? esc_html__( 'Actualizar producto', 'tcg-manager' )
-						: esc_html__( 'Crear producto', 'tcg-manager' ); ?>
+					<?php if ( $is_draft ) : ?>
+						<?php esc_html_e( 'Publicar producto', 'tcg-manager' ); ?>
+					<?php elseif ( $product_id ) : ?>
+						<?php esc_html_e( 'Actualizar producto', 'tcg-manager' ); ?>
+					<?php else : ?>
+						<?php esc_html_e( 'Crear producto', 'tcg-manager' ); ?>
+					<?php endif; ?>
 				</button>
+				<?php if ( $is_draft ) : ?>
+					<button type="submit" name="save_draft" value="1" class="tcg-btn tcg-btn-secondary">
+						<?php esc_html_e( 'Guardar borrador', 'tcg-manager' ); ?>
+					</button>
+				<?php endif; ?>
 				<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'products' ) ); ?>" class="tcg-btn tcg-btn-secondary">
 					<?php esc_html_e( 'Cancelar', 'tcg-manager' ); ?>
 				</a>
@@ -170,9 +182,10 @@ class TCG_Product_Form {
 				return;
 			}
 
+			$new_status = ! empty( $_POST['save_draft'] ) ? 'draft' : 'publish';
 			wp_update_post( [
 				'ID'          => $product_id,
-				'post_status' => 'publish',
+				'post_status' => $new_status,
 			] );
 		} else {
 			// Create new product.
@@ -219,6 +232,70 @@ class TCG_Product_Form {
 		}
 
 		wp_safe_redirect( add_query_arg( 'tcg_msg', 'product_saved', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		exit;
+	}
+
+	/**
+	 * Process bulk add by set — creates draft products.
+	 */
+	public function process_bulk_add() {
+		if ( ! isset( $_POST['tcg_action'] ) || $_POST['tcg_action'] !== 'bulk_add' ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_POST['tcg_bulk_nonce'] ?? '', 'tcg_bulk_add' ) ) {
+			return;
+		}
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			return;
+		}
+
+		$card_ids = isset( $_POST['card_ids'] ) && is_array( $_POST['card_ids'] )
+			? array_map( 'absint', $_POST['card_ids'] )
+			: [];
+
+		if ( empty( $card_ids ) ) {
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'No seleccionaste ninguna carta.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'bulk-add' ) ) );
+			exit;
+		}
+
+		$user_id = get_current_user_id();
+		$created = 0;
+
+		foreach ( $card_ids as $card_id ) {
+			if ( get_post_type( $card_id ) !== 'ygo_card' ) {
+				continue;
+			}
+
+			$card = get_post( $card_id );
+			if ( ! $card ) {
+				continue;
+			}
+
+			$product_id = wp_insert_post( [
+				'post_type'   => 'product',
+				'post_status' => 'draft',
+				'post_author' => $user_id,
+				'post_title'  => $card->post_title,
+			] );
+
+			if ( is_wp_error( $product_id ) ) {
+				continue;
+			}
+
+			update_post_meta( $product_id, '_linked_ygo_card', $card_id );
+			update_post_meta( $product_id, '_manage_stock', 'yes' );
+			update_post_meta( $product_id, '_stock', 0 );
+			update_post_meta( $product_id, '_stock_status', 'outofstock' );
+			wp_set_object_terms( $product_id, 'simple', 'product_type' );
+
+			do_action( 'tcg_manager_product_saved', $product_id, $card_id );
+			$created++;
+		}
+
+		$msg = sprintf( __( '%d borrador(es) creado(s). Edítalos para asignar precio, stock y condición.', 'tcg-manager' ), $created );
+		wp_safe_redirect( add_query_arg( 'tcg_msg', 'bulk_created', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		exit;
 	}
 
