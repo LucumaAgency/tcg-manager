@@ -64,23 +64,19 @@ class TCG_Commissions {
 			return;
 		}
 
-		$total_fee = 0;
-
+		// Collect unique vendors in the cart.
+		$vendors = [];
 		foreach ( $cart->get_cart() as $item ) {
-			$product_id = $item['product_id'];
-			$vendor_id  = (int) get_post_field( 'post_author', $product_id );
-
-			if ( ! $vendor_id ) {
-				continue;
+			$vendor_id = (int) get_post_field( 'post_author', $item['product_id'] );
+			if ( $vendor_id ) {
+				$vendors[ $vendor_id ] = true;
 			}
-
-			$line_total = (float) $item['line_total'];
-			$quantity   = (int) $item['quantity'];
-			$fee        = self::calculate_commission_amount( $line_total, $vendor_id, $quantity );
-			$total_fee += $fee;
 		}
 
-		if ( $total_fee > 0 ) {
+		$vendor_count = count( $vendors );
+		if ( $vendor_count > 0 ) {
+			$fee_per_vendor = (float) get_option( 'tcg_manager_commission_fixed', 1 );
+			$total_fee      = $fee_per_vendor * $vendor_count;
 			$cart->add_fee( __( 'Fee de administración', 'tcg-manager' ), $total_fee, false );
 		}
 	}
