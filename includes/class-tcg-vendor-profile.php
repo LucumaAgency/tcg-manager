@@ -23,6 +23,7 @@ class TCG_Vendor_Profile {
 		add_shortcode( 'tcg_vendor_products_count', [ $this, 'sc_vendor_products_count' ] );
 		add_shortcode( 'tcg_vendor_products_grid', [ $this, 'sc_vendor_products_grid' ] );
 		add_shortcode( 'tcg_vendor_url', [ $this, 'sc_vendor_url' ] );
+		add_shortcode( 'tcg_vendor_pagination', [ $this, 'sc_vendor_pagination' ] );
 
 		add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_store_css' ] );
 
@@ -30,9 +31,11 @@ class TCG_Vendor_Profile {
 		add_filter( 'woocommerce_account_menu_items', [ $this, 'add_myaccount_vendor_tab' ] );
 		add_filter( 'woocommerce_get_endpoint_url', [ $this, 'vendor_tab_url' ], 10, 2 );
 
-		// Bricks Query Loop integration: filter Posts query on vendor store pages.
+		// Bricks Query Loop integration.
 		if ( defined( 'BRICKS_VERSION' ) ) {
-			add_filter( 'bricks/posts/query_vars', [ $this, 'bricks_filter_vendor_query' ], 10, 3 );
+			add_filter( 'bricks/setup/control_options', [ $this, 'bricks_add_query_type' ] );
+			add_filter( 'bricks/query/run', [ $this, 'bricks_run_vendor_query' ], 10, 2 );
+			add_filter( 'bricks/query/loop_object', [ $this, 'bricks_loop_object' ], 10, 3 );
 		}
 	}
 
@@ -363,6 +366,31 @@ class TCG_Vendor_Profile {
 	}
 
 	/**
+	 * Render pagination for vendor products (works with Bricks query loop).
+	 */
+	public function sc_vendor_pagination() {
+		$wp_query = $GLOBALS['tcg_vendor_query'] ?? null;
+		if ( ! $wp_query || $wp_query->max_num_pages <= 1 ) {
+			return '';
+		}
+
+		$paged = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
+
+		ob_start();
+		?>
+		<div class="tcg-pagination">
+			<?php echo paginate_links( [
+				'base'    => add_query_arg( 'paged', '%#%' ),
+				'format'  => '',
+				'current' => $paged,
+				'total'   => $wp_query->max_num_pages,
+			] ); ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
 	 * Enqueue store CSS when on a vendor store page.
 	 */
 	public function maybe_enqueue_store_css() {
@@ -374,39 +402,71 @@ class TCG_Vendor_Profile {
 	/* ─── Bricks Query Loop ─── */
 
 	/**
-	 * Filter Bricks Posts query on vendor store pages.
-	 * Use a standard "Posts" query loop in Bricks with post_type = product.
-	 * This filter adds the vendor author restriction automatically.
+	 * Register "Vendor Products" query type in Bricks.
 	 */
-	public function bricks_filter_vendor_query( $query_vars, $settings, $element_id ) {
-		// Only filter product queries.
-		$post_type = $query_vars['post_type'] ?? '';
-		if ( $post_type !== 'product' && ( ! is_array( $post_type ) || ! in_array( 'product', $post_type, true ) ) ) {
-			return $query_vars;
+	public function bricks_add_query_type( $control_options ) {
+		$control_options['queryTypes']['tcg_vendor_products'] = esc_html__( 'Vendor Products', 'tcg-manager' );
+		return $control_options;
+	}
+
+	/**
+	 * Run the custom "tcg_vendor_products" query for Bricks loop.
+	 */
+	public function bricks_run_vendor_query( $results, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $results;
 		}
 
 		$vendor = self::get_current_vendor();
 
-		// In the Bricks editor, there's no vendor in context — show all linked products as preview.
-		if ( ! $vendor && ( function_exists( 'bricks_is_builder' ) && bricks_is_builder() ) ) {
-			$meta_query   = $query_vars['meta_query'] ?? [];
-			$meta_query[] = [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ];
-			$query_vars['meta_query'] = $meta_query;
-			return $query_vars;
+		// In the Bricks editor, show all linked products as preview.
+		if ( ! $vendor && function_exists( 'bricks_is_builder' ) && bricks_is_builder() ) {
+			$preview_query = new \WP_Query( [
+				'post_type'      => 'product',
+				'post_status'    => 'publish',
+				'posts_per_page' => 12,
+				'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
+			] );
+			return $preview_query->posts;
 		}
 
 		if ( ! $vendor ) {
-			return $query_vars;
+			return [];
 		}
 
-		$query_vars['author'] = $vendor->ID;
+		$paged          = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
+		$posts_per_page = absint( get_option( 'tcg_vendor_products_per_page', 24 ) );
 
-		// Ensure only linked products show.
-		$meta_query   = $query_vars['meta_query'] ?? [];
-		$meta_query[] = [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ];
-		$query_vars['meta_query'] = $meta_query;
+		$wp_query = new \WP_Query( [
+			'post_type'      => 'product',
+			'post_status'    => 'publish',
+			'author'         => $vendor->ID,
+			'posts_per_page' => $posts_per_page,
+			'paged'          => $paged,
+			'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
+		] );
 
-		return $query_vars;
+		// Store for pagination shortcode.
+		$GLOBALS['tcg_vendor_query'] = $wp_query;
+
+		return $wp_query->posts;
+	}
+
+	/**
+	 * Set the loop object for each iteration.
+	 */
+	public function bricks_loop_object( $loop_object, $loop_key, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $loop_object;
+		}
+
+		if ( $loop_object instanceof \WP_Post ) {
+			global $post;
+			$post = $loop_object;
+			setup_postdata( $post );
+		}
+
+		return $loop_object;
 	}
 
 	/* ─── WooCommerce My Account vendor tab ─── */

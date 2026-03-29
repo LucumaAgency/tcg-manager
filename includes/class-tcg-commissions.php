@@ -322,6 +322,15 @@ function tcg_manager_get_settings_class() {
 					'id'    => 'tcg_pages_options',
 				],
 				[
+					'title'    => __( 'Productos por página (tienda vendedor)', 'tcg-manager' ),
+					'desc'     => __( 'Cantidad de productos a mostrar por página en la tienda del vendedor.', 'tcg-manager' ),
+					'id'       => 'tcg_vendor_products_per_page',
+					'type'     => 'number',
+					'default'  => '24',
+					'css'      => 'width:80px;',
+					'custom_attributes' => [ 'min' => '1', 'max' => '100', 'step' => '1' ],
+				],
+				[
 					'title'    => __( 'Página de tienda de vendedor', 'tcg-manager' ),
 					'desc'     => __( 'Página con la plantilla Bricks para la tienda del vendedor. Usa los shortcodes [tcg_vendor_name], [tcg_vendor_products_grid], etc.', 'tcg-manager' ),
 					'id'       => 'tcg_store_page_id',
