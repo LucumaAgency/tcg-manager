@@ -81,7 +81,7 @@ class TCG_Commissions {
 		}
 
 		if ( $total_fee > 0 ) {
-			$cart->add_fee( __( 'Fee de administración', 'tcg-manager' ), $total_fee, true );
+			$cart->add_fee( __( 'Fee de administración', 'tcg-manager' ), $total_fee, false );
 		}
 	}
 
