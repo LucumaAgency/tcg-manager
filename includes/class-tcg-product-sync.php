@@ -60,16 +60,20 @@ class TCG_Product_Sync {
 			wp_set_object_terms( $product_id, $card_sets, 'ygo_set' );
 		}
 
-		// Sync rarity.
+		// Sync rarity — skip numeric/invalid values from the API (e.g. "2" in L5DD).
 		$rarity_name = get_post_meta( $card_id, '_ygo_set_rarity', true );
-		if ( $rarity_name ) {
-			$term = term_exists( $rarity_name, 'ygo_rarity' );
-			if ( ! $term ) {
-				$term = wp_insert_term( $rarity_name, 'ygo_rarity' );
-			}
-			if ( ! is_wp_error( $term ) ) {
-				$term_id = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
-				wp_set_object_terms( $product_id, $term_id, 'ygo_rarity' );
+		if ( $rarity_name && ! is_numeric( $rarity_name ) && strlen( $rarity_name ) > 1 ) {
+			// Cards may have multiple rarities separated by " / " — use the first one.
+			$first_rarity = trim( strtok( $rarity_name, '/' ) );
+			if ( $first_rarity ) {
+				$term = term_exists( $first_rarity, 'ygo_rarity' );
+				if ( ! $term ) {
+					$term = wp_insert_term( $first_rarity, 'ygo_rarity' );
+				}
+				if ( ! is_wp_error( $term ) ) {
+					$term_id = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+					wp_set_object_terms( $product_id, $term_id, 'ygo_rarity' );
+				}
 			}
 		}
 	}
