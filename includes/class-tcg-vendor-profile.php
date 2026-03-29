@@ -37,6 +37,7 @@ class TCG_Vendor_Profile {
 			add_filter( 'bricks/query/loop_object', [ $this, 'bricks_loop_object' ], 10, 3 );
 			add_filter( 'bricks/query/result_count', [ $this, 'bricks_result_count' ], 10, 2 );
 			add_filter( 'bricks/query/max_num_pages', [ $this, 'bricks_max_num_pages' ], 10, 2 );
+			add_filter( 'bricks/query/loop_controls', [ $this, 'bricks_loop_controls' ], 10, 2 );
 		}
 	}
 
@@ -386,6 +387,45 @@ class TCG_Vendor_Profile {
 	}
 
 	/**
+	 * Add controls to the Bricks query loop panel for Vendor Products.
+	 */
+	public function bricks_loop_controls( $controls, $query_type ) {
+		if ( $query_type !== 'tcg_vendor_products' ) {
+			return $controls;
+		}
+
+		$controls['posts_per_page'] = [
+			'label'       => esc_html__( 'Productos por página', 'tcg-manager' ),
+			'type'        => 'number',
+			'placeholder' => 24,
+		];
+
+		$controls['orderby'] = [
+			'label'       => esc_html__( 'Ordenar por', 'tcg-manager' ),
+			'type'        => 'select',
+			'options'     => [
+				'date'        => esc_html__( 'Fecha', 'tcg-manager' ),
+				'title'       => esc_html__( 'Título', 'tcg-manager' ),
+				'price'       => esc_html__( 'Precio', 'tcg-manager' ),
+				'total_sales' => esc_html__( 'Más vendidos', 'tcg-manager' ),
+			],
+			'placeholder' => esc_html__( 'Fecha', 'tcg-manager' ),
+		];
+
+		$controls['order'] = [
+			'label'       => esc_html__( 'Orden', 'tcg-manager' ),
+			'type'        => 'select',
+			'options'     => [
+				'DESC' => esc_html__( 'Descendente', 'tcg-manager' ),
+				'ASC'  => esc_html__( 'Ascendente', 'tcg-manager' ),
+			],
+			'placeholder' => 'DESC',
+		];
+
+		return $controls;
+	}
+
+	/**
 	 * Run the custom "tcg_vendor_products" query for Bricks loop.
 	 */
 	public function bricks_run_vendor_query( $results, $query ) {
@@ -401,6 +441,8 @@ class TCG_Vendor_Profile {
 		$settings       = $query->settings;
 		$posts_per_page = ! empty( $settings['posts_per_page'] ) ? absint( $settings['posts_per_page'] ) : 24;
 		$paged          = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
+		$orderby        = ! empty( $settings['orderby'] ) ? $settings['orderby'] : 'date';
+		$order          = ! empty( $settings['order'] ) ? $settings['order'] : 'DESC';
 
 		$args = [
 			'post_type'      => 'product',
@@ -408,8 +450,20 @@ class TCG_Vendor_Profile {
 			'author'         => $vendor->ID,
 			'posts_per_page' => $posts_per_page,
 			'paged'          => $paged,
+			'order'          => $order,
 			'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
 		];
+
+		// Handle special orderby values.
+		if ( $orderby === 'price' ) {
+			$args['meta_key'] = '_price';
+			$args['orderby']  = 'meta_value_num';
+		} elseif ( $orderby === 'total_sales' ) {
+			$args['meta_key'] = 'total_sales';
+			$args['orderby']  = 'meta_value_num';
+		} else {
+			$args['orderby'] = $orderby;
+		}
 
 		$wp_query = new \WP_Query( $args );
 
