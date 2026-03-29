@@ -22,6 +22,7 @@ class TCG_Product_Form {
 		$condition   = [];
 		$printing    = [];
 		$language    = [];
+		$rarity      = [];
 
 		if ( $product_id ) {
 			// Verify ownership.
@@ -41,10 +42,12 @@ class TCG_Product_Form {
 			$condition = wp_get_post_terms( $product_id, 'ygo_condition', [ 'fields' => 'ids' ] );
 			$printing  = wp_get_post_terms( $product_id, 'ygo_printing', [ 'fields' => 'ids' ] );
 			$language  = wp_get_post_terms( $product_id, 'ygo_language', [ 'fields' => 'ids' ] );
+			$rarity    = wp_get_post_terms( $product_id, 'ygo_rarity', [ 'fields' => 'ids' ] );
 
 			if ( is_wp_error( $condition ) ) $condition = [];
 			if ( is_wp_error( $printing ) )  $printing  = [];
-			if ( is_wp_error( $language ) )  $language  = [];
+			if ( is_wp_error( $language ) )   $language  = [];
+			if ( is_wp_error( $rarity ) )     $rarity    = [];
 		}
 		?>
 		<form method="post" class="tcg-product-form">
@@ -81,6 +84,7 @@ class TCG_Product_Form {
 			<?php
 			// Taxonomy dropdowns.
 			$taxonomies = [
+				'ygo_rarity'    => [ 'label' => __( 'Rareza', 'tcg-manager' ),     'current' => $rarity ],
 				'ygo_condition' => [ 'label' => __( 'Condición', 'tcg-manager' ),  'current' => $condition ],
 				'ygo_printing'  => [ 'label' => __( 'Printing', 'tcg-manager' ),   'current' => $printing ],
 				'ygo_language'  => [ 'label' => __( 'Idioma', 'tcg-manager' ),     'current' => $language ],
@@ -215,7 +219,7 @@ class TCG_Product_Form {
 		wp_set_object_terms( $product_id, 'simple', 'product_type' );
 
 		// Taxonomy terms.
-		$taxonomies = [ 'ygo_condition', 'ygo_printing', 'ygo_language' ];
+		$taxonomies = [ 'ygo_rarity', 'ygo_condition', 'ygo_printing', 'ygo_language' ];
 		foreach ( $taxonomies as $tax ) {
 			if ( isset( $_POST[ $tax ] ) && $_POST[ $tax ] !== '' ) {
 				wp_set_object_terms( $product_id, absint( $_POST[ $tax ] ), $tax );
