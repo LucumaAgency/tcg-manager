@@ -116,7 +116,7 @@ foreach ( $all_products->posts as $pid ) {
 		'id'     => $pid,
 		'title'  => get_the_title( $pid ),
 		'thumb'  => $thumb ?: '',
-		'price'  => $product->get_price() ? strip_tags( $product->get_price_html() ) : '',
+		'price'  => $product->get_price() ? html_entity_decode( strip_tags( $product->get_price_html() ), ENT_QUOTES, 'UTF-8' ) : '',
 		'status' => get_post_status( $pid ),
 		'url'    => TCG_Dashboard::get_dashboard_url( 'edit-product', [ 'tcg-id' => $pid ] ),
 	];
