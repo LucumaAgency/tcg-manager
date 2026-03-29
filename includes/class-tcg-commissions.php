@@ -7,6 +7,7 @@ class TCG_Commissions {
 		add_action( 'woocommerce_order_status_completed', [ $this, 'calculate_commission' ] );
 		add_action( 'woocommerce_order_status_processing', [ $this, 'calculate_commission' ] );
 		add_filter( 'woocommerce_get_settings_pages', [ $this, 'add_settings_page' ] );
+		add_action( 'woocommerce_cart_calculate_fees', [ $this, 'add_admin_fee' ] );
 	}
 
 	/**
@@ -53,6 +54,35 @@ class TCG_Commissions {
 			$parts[] = wc_price( $config['fixed'] );
 		}
 		return $parts ? implode( ' + ', $parts ) : '0%';
+	}
+
+	/**
+	 * Add admin fee at checkout based on commission config.
+	 */
+	public function add_admin_fee( $cart ) {
+		if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+			return;
+		}
+
+		$total_fee = 0;
+
+		foreach ( $cart->get_cart() as $item ) {
+			$product_id = $item['product_id'];
+			$vendor_id  = (int) get_post_field( 'post_author', $product_id );
+
+			if ( ! $vendor_id ) {
+				continue;
+			}
+
+			$line_total = (float) $item['line_total'];
+			$quantity   = (int) $item['quantity'];
+			$fee        = self::calculate_commission_amount( $line_total, $vendor_id, $quantity );
+			$total_fee += $fee;
+		}
+
+		if ( $total_fee > 0 ) {
+			$cart->add_fee( __( 'Fee de administración', 'tcg-manager' ), $total_fee, true );
+		}
 	}
 
 	/**
@@ -112,8 +142,8 @@ class TCG_Commissions {
 			$sale_total = (float) $item->get_total();
 			$quantity   = (int) $item->get_quantity();
 			$commission = self::calculate_commission_amount( $sale_total, $vendor_id, $quantity );
-			$vendor_net = round( $sale_total - $commission, 2 );
-			if ( $vendor_net < 0 ) $vendor_net = 0;
+			// Fee is paid by the customer at checkout, so vendor keeps the full sale total.
+			$vendor_net = $sale_total;
 
 			$wpdb->insert( $table, [
 				'order_id'     => $parent_order_id ?: $order->get_id(),
