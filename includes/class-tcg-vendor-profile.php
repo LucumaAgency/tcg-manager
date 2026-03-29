@@ -35,6 +35,8 @@ class TCG_Vendor_Profile {
 			add_filter( 'bricks/setup/control_options', [ $this, 'bricks_add_query_type' ] );
 			add_filter( 'bricks/query/run', [ $this, 'bricks_run_vendor_query' ], 10, 2 );
 			add_filter( 'bricks/query/loop_object', [ $this, 'bricks_loop_object' ], 10, 3 );
+			add_filter( 'bricks/query/result_count', [ $this, 'bricks_result_count' ], 10, 2 );
+			add_filter( 'bricks/query/max_num_pages', [ $this, 'bricks_max_num_pages' ], 10, 2 );
 		}
 	}
 
@@ -396,24 +398,46 @@ class TCG_Vendor_Profile {
 			return [];
 		}
 
-		$settings = $query->settings;
-		$paged    = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
+		$settings       = $query->settings;
+		$posts_per_page = ! empty( $settings['posts_per_page'] ) ? absint( $settings['posts_per_page'] ) : 24;
+		$paged          = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
 
 		$args = [
 			'post_type'      => 'product',
 			'post_status'    => 'publish',
 			'author'         => $vendor->ID,
-			'posts_per_page' => ! empty( $settings['posts_per_page'] ) ? absint( $settings['posts_per_page'] ) : 24,
+			'posts_per_page' => $posts_per_page,
 			'paged'          => $paged,
+			'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
 		];
 
 		$wp_query = new \WP_Query( $args );
 
-		// Store for pagination.
-		$query->count        = $wp_query->found_posts;
+		// Store for pagination filters.
+		$query->count         = $wp_query->found_posts;
 		$query->max_num_pages = $wp_query->max_num_pages;
 
 		return $wp_query->posts;
+	}
+
+	/**
+	 * Return total result count for Bricks pagination.
+	 */
+	public function bricks_result_count( $count, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $count;
+		}
+		return $query->count ?? 0;
+	}
+
+	/**
+	 * Return max pages for Bricks pagination.
+	 */
+	public function bricks_max_num_pages( $max, $query ) {
+		if ( $query->object_type !== 'tcg_vendor_products' ) {
+			return $max;
+		}
+		return $query->max_num_pages ?? 1;
 	}
 
 	/**
