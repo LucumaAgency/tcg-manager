@@ -435,7 +435,7 @@ class TCG_Vendor_Profile {
 		}
 
 		$paged          = max( 1, absint( $_GET['paged'] ?? get_query_var( 'paged', 1 ) ) );
-		$posts_per_page = absint( get_option( 'tcg_vendor_products_per_page', 24 ) );
+		$posts_per_page = absint( get_option( 'tcg_vendor_products_per_page', 25 ) );
 
 		$wp_query = new \WP_Query( [
 			'post_type'      => 'product',

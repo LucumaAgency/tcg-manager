@@ -326,7 +326,7 @@ function tcg_manager_get_settings_class() {
 					'desc'     => __( 'Cantidad de productos a mostrar por página en la tienda del vendedor.', 'tcg-manager' ),
 					'id'       => 'tcg_vendor_products_per_page',
 					'type'     => 'number',
-					'default'  => '24',
+					'default'  => '25',
 					'css'      => 'width:80px;',
 					'custom_attributes' => [ 'min' => '1', 'max' => '100', 'step' => '1' ],
 				],
