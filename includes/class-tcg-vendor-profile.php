@@ -379,14 +379,23 @@ class TCG_Vendor_Profile {
 	 * This filter adds the vendor author restriction automatically.
 	 */
 	public function bricks_filter_vendor_query( $query_vars, $settings, $element_id ) {
-		$vendor = self::get_current_vendor();
-		if ( ! $vendor ) {
+		// Only filter product queries.
+		$post_type = $query_vars['post_type'] ?? '';
+		if ( $post_type !== 'product' && ( ! is_array( $post_type ) || ! in_array( 'product', $post_type, true ) ) ) {
 			return $query_vars;
 		}
 
-		// Only filter product queries on vendor store pages.
-		$post_type = $query_vars['post_type'] ?? '';
-		if ( $post_type !== 'product' && ( ! is_array( $post_type ) || ! in_array( 'product', $post_type, true ) ) ) {
+		$vendor = self::get_current_vendor();
+
+		// In the Bricks editor, there's no vendor in context — show all linked products as preview.
+		if ( ! $vendor && ( function_exists( 'bricks_is_builder' ) && bricks_is_builder() ) ) {
+			$meta_query   = $query_vars['meta_query'] ?? [];
+			$meta_query[] = [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ];
+			$query_vars['meta_query'] = $meta_query;
+			return $query_vars;
+		}
+
+		if ( ! $vendor ) {
 			return $query_vars;
 		}
 
