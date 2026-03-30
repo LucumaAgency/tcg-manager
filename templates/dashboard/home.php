@@ -37,19 +37,19 @@ $orders_count  = $orders_result->total ?? 0;
 
 <div class="tcg-dashboard-stats">
 	<div class="tcg-stat-box">
-		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;"><?php esc_html_e( 'Tus ganancias', 'tcg-manager' ); ?></div>
+		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;font-size:18px;"><?php esc_html_e( 'Tus ganancias', 'tcg-manager' ); ?></div>
 		<div class="tcg-stat-desc"><?php esc_html_e( 'Te quedas con el 100% del precio de venta. El fee de administracion lo paga el comprador.', 'tcg-manager' ); ?></div>
 	</div>
 	<div class="tcg-stat-box">
-		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;"><?php esc_html_e( 'Como vender', 'tcg-manager' ); ?></div>
+		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;font-size:18px;"><?php esc_html_e( 'Como vender', 'tcg-manager' ); ?></div>
 		<div class="tcg-stat-desc"><?php esc_html_e( '"Agregar por Set" para lote o "Nuevo Producto" individual. Asigna rareza, condicion, precio y stock.', 'tcg-manager' ); ?></div>
 	</div>
 	<div class="tcg-stat-box">
-		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;"><?php esc_html_e( 'Envio', 'tcg-manager' ); ?></div>
+		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;font-size:18px;"><?php esc_html_e( 'Envio', 'tcg-manager' ); ?></div>
 		<div class="tcg-stat-desc"><?php esc_html_e( 'Configura tus tarifas en "Envio". El comprador ve tu costo por separado. Tarifas distintas para Lima y Provincia.', 'tcg-manager' ); ?></div>
 	</div>
 	<div class="tcg-stat-box">
-		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;"><?php esc_html_e( 'Pagos', 'tcg-manager' ); ?></div>
+		<div class="tcg-stat-label" style="font-weight:600;color:#1a1a1a;margin-bottom:6px;font-size:18px;"><?php esc_html_e( 'Pagos', 'tcg-manager' ); ?></div>
 		<div class="tcg-stat-desc"><?php esc_html_e( 'Configura al menos un metodo de pago en tu Perfil. El admin te pagara cuando se completen pedidos.', 'tcg-manager' ); ?></div>
 	</div>
 </div>
