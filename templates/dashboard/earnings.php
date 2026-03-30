@@ -76,7 +76,7 @@ $monthly    = TCG_Commissions::get_vendor_monthly_sales( $vendor_id );
 					<span class="tcg-badge tcg-badge-paid"><?php esc_html_e( 'Pagado', 'tcg-manager' ); ?></span>
 				<?php endif; ?>
 			</td>
-			<td data-label="<?php esc_attr_e( 'Fecha', 'tcg-manager' ); ?>"><?php echo esc_html( date_i18n( 'd/m/Y', strtotime( $item->created_at ) ) ); ?></td>
+			<td data-label="<?php esc_attr_e( 'Fecha', 'tcg-manager' ); ?>"><?php echo esc_html( date_i18n( 'd/m/Y H:i', strtotime( $item->created_at ) ) ); ?></td>
 		</tr>
 	<?php endforeach; ?>
 	</tbody>

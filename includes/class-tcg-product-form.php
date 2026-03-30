@@ -116,7 +116,7 @@ class TCG_Product_Form {
 					<?php esc_html_e( 'Precio', 'tcg-manager' ); ?> (<?php echo esc_html( get_woocommerce_currency_symbol() ); ?>) <span class="required">*</span>
 				</label>
 				<input type="number" name="price" id="tcg-price" class="tcg-form-control"
-					   value="<?php echo esc_attr( $price ); ?>" step="0.01" min="0" required>
+					   value="<?php echo esc_attr( $price ); ?>" step="0.01" min="0.01" required>
 			</div>
 
 			<!-- Stock -->
@@ -171,6 +171,12 @@ class TCG_Product_Form {
 		$card_id    = absint( $_POST['_linked_ygo_card'] ?? 0 );
 		$price      = floatval( $_POST['price'] ?? 0 );
 		$stock      = absint( $_POST['stock'] ?? 0 );
+
+		if ( $price <= 0 ) {
+			$redirect_tab = $product_id ? TCG_Dashboard::get_dashboard_url( 'edit-product', [ 'tcg-id' => $product_id ] ) : TCG_Dashboard::get_dashboard_url( 'new-product' );
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'El precio debe ser mayor a 0.', 'tcg-manager' ) ), $redirect_tab ) );
+			exit;
+		}
 
 		if ( ! $card_id || get_post_type( $card_id ) !== 'ygo_card' ) {
 			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'Carta no válida.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'new-product' ) ) );

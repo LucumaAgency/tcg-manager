@@ -75,3 +75,27 @@ $ship_prov_max   = get_user_meta( $vendor_id, '_tcg_shipping_provincia_days_max'
 		</button>
 	</div>
 </form>
+
+<script>
+(function() {
+	var form = document.querySelector('.tcg-product-form');
+	if ( ! form ) return;
+	form.addEventListener('submit', function(e) {
+		var limaMin = parseInt(form.querySelector('[name="shipping_lima_days_min"]').value) || 0;
+		var limaMax = parseInt(form.querySelector('[name="shipping_lima_days_max"]').value) || 0;
+		var provMin = parseInt(form.querySelector('[name="shipping_provincia_days_min"]').value) || 0;
+		var provMax = parseInt(form.querySelector('[name="shipping_provincia_days_max"]').value) || 0;
+
+		if ( limaMin && limaMax && limaMax < limaMin ) {
+			alert('Lima: el máximo de días debe ser mayor o igual al mínimo.');
+			e.preventDefault();
+			return;
+		}
+		if ( provMin && provMax && provMax < provMin ) {
+			alert('Provincia: el máximo de días debe ser mayor o igual al mínimo.');
+			e.preventDefault();
+			return;
+		}
+	});
+})();
+</script>

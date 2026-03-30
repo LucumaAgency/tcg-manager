@@ -18,6 +18,21 @@ if ( $step === 2 && isset( $_POST['tcg_onboarding_payment'] ) && wp_verify_nonce
 		'_tcg_pay_bcp', '_tcg_pay_bcp_cci',
 		'_tcg_pay_bbva', '_tcg_pay_bbva_cci',
 	];
+
+	// Validate: at least one payment method must be filled.
+	$primary_payment_keys = [ 'pay_yape', 'pay_plin', 'pay_interbank', 'pay_bcp', 'pay_bbva' ];
+	$has_payment = false;
+	foreach ( $primary_payment_keys as $pk ) {
+		if ( ! empty( trim( $_POST[ $pk ] ?? '' ) ) ) {
+			$has_payment = true;
+			break;
+		}
+	}
+	if ( ! $has_payment ) {
+		wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'Debes completar al menos un método de pago.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'onboarding', [ 'step' => 2 ] ) ) );
+		exit;
+	}
+
 	foreach ( $payment_fields as $field ) {
 		$key = str_replace( '_tcg_', '', $field );
 		update_user_meta( $vendor_id, $field, sanitize_text_field( $_POST[ $key ] ?? '' ) );
@@ -106,7 +121,7 @@ if ( $step === 3 && isset( $_POST['tcg_onboarding_shipping'] ) && wp_verify_nonc
 				<label for="tcg-price" class="tcg-form-label">
 					<?php esc_html_e( 'Precio', 'tcg-manager' ); ?> (<?php echo esc_html( get_woocommerce_currency_symbol() ); ?>) <span class="required">*</span>
 				</label>
-				<input type="number" name="price" id="tcg-price" class="tcg-form-control" step="0.01" min="0" required>
+				<input type="number" name="price" id="tcg-price" class="tcg-form-control" step="0.01" min="0.01" required>
 			</div>
 
 			<div class="tcg-form-group">
