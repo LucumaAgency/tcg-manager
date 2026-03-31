@@ -326,10 +326,15 @@ class TCG_Product_Form {
 			return;
 		}
 
-		$raw = isset( $_POST['csv_data'] ) ? sanitize_textarea_field( wp_unslash( $_POST['csv_data'] ) ) : '';
+		if ( empty( $_FILES['csv_file']['tmp_name'] ) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK ) {
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'No se subió ningún archivo.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
+			exit;
+		}
 
-		if ( empty( $raw ) ) {
-			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'No pegaste datos.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
+		$raw = file_get_contents( $_FILES['csv_file']['tmp_name'] );
+
+		if ( empty( trim( $raw ) ) ) {
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'El archivo está vacío.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
 			exit;
 		}
 
@@ -338,13 +343,23 @@ class TCG_Product_Form {
 		$created = 0;
 		$errors  = 0;
 
+		// Detect separator from first line.
+		$first_line = trim( $lines[0] ?? '' );
+		if ( strpos( $first_line, "\t" ) !== false ) {
+			$separator = "\t";
+		} elseif ( strpos( $first_line, ';' ) !== false ) {
+			$separator = ';';
+		} else {
+			$separator = ',';
+		}
+
 		foreach ( $lines as $line ) {
 			$line = trim( $line );
 			if ( empty( $line ) ) {
 				continue;
 			}
 
-			$cols = preg_split( '/\t+/', $line );
+			$cols = explode( $separator, $line );
 			if ( count( $cols ) < 3 ) {
 				$errors++;
 				continue;
