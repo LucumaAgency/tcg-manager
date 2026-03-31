@@ -366,43 +366,52 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Parse columns: Set Name | Product Name | Number | Rarity | Condition | Quantity | Printing
+			// Parse columns: Set Name | Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price
 			$set_name     = trim( $cols[0] ?? '' );
 			$product_name = trim( $cols[1] ?? '' );
 			$set_code     = trim( $cols[2] ?? '' );
 			$rarity_raw   = trim( $cols[3] ?? '' );
 			$condition    = trim( $cols[4] ?? '' );
-			$quantity     = absint( $cols[5] ?? 1 );
+			$quantity     = absint( $cols[5] ?? 0 );
 			$printing     = trim( $cols[6] ?? '' );
+			$language     = trim( $cols[7] ?? '' );
+			$price        = floatval( $cols[8] ?? 0 );
 
 			// Skip header row.
 			if ( strtolower( $product_name ) === 'product name' || strtolower( $set_name ) === 'set name' ) {
 				continue;
 			}
 
-			if ( empty( $product_name ) || empty( $set_code ) ) {
+			if ( empty( $product_name ) && empty( $set_code ) ) {
 				$errors++;
 				continue;
 			}
 
 			// Find ygo_card by _ygo_set_code, fallback to title search.
-			$card_id = $this->find_card_by_set_code( $set_code );
-			if ( ! $card_id ) {
+			$card_id = 0;
+			if ( $set_code ) {
+				$card_id = $this->find_card_by_set_code( $set_code );
+			}
+			if ( ! $card_id && $product_name ) {
 				$card_id = $this->find_card_by_name( $product_name );
 			}
 			if ( ! $card_id ) {
-				$error_names[] = $product_name . ' [' . $set_code . ']';
+				$error_names[] = $product_name . ( $set_code ? ' [' . $set_code . ']' : '' );
 				$errors++;
 				continue;
 			}
 
+			// Determine status: draft if missing any data, publish if complete.
+			$has_all_data = $price > 0 && $quantity > 0 && $condition && $printing && $rarity_raw;
+			$post_status  = $has_all_data ? 'publish' : 'draft';
+
 			// Filter rarity: remove "Short Print", keep rest.
 			$rarity = $this->clean_rarity( $rarity_raw );
 
-			// Create draft product.
+			// Create product.
 			$product_id = wp_insert_post( [
 				'post_type'   => 'product',
-				'post_status' => 'draft',
+				'post_status' => $post_status,
 				'post_author' => $user_id,
 				'post_title'  => get_the_title( $card_id ),
 			] );
@@ -417,39 +426,24 @@ class TCG_Product_Form {
 			update_post_meta( $product_id, '_manage_stock', 'yes' );
 			update_post_meta( $product_id, '_stock', $quantity );
 			update_post_meta( $product_id, '_stock_status', $quantity > 0 ? 'instock' : 'outofstock' );
+			if ( $price > 0 ) {
+				update_post_meta( $product_id, '_regular_price', $price );
+				update_post_meta( $product_id, '_price', $price );
+			}
 			wp_set_object_terms( $product_id, 'simple', 'product_type' );
 
 			// Taxonomies.
-			if ( $rarity ) {
-				$term = term_exists( $rarity, 'ygo_rarity' );
-				if ( ! $term ) {
-					$term = wp_insert_term( $rarity, 'ygo_rarity' );
-				}
-				if ( ! is_wp_error( $term ) ) {
-					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
-					wp_set_object_terms( $product_id, $tid, 'ygo_rarity' );
-				}
-			}
-
-			if ( $condition ) {
-				$term = term_exists( $condition, 'ygo_condition' );
-				if ( $term ) {
-					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
-					wp_set_object_terms( $product_id, $tid, 'ygo_condition' );
-				}
-			}
-
-			if ( $printing ) {
-				$term = term_exists( $printing, 'ygo_printing' );
-				if ( $term ) {
-					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
-					wp_set_object_terms( $product_id, $tid, 'ygo_printing' );
-				}
-			}
+			$this->set_taxonomy_term( $product_id, $rarity, 'ygo_rarity', true );
+			$this->set_taxonomy_term( $product_id, $condition, 'ygo_condition' );
+			$this->set_taxonomy_term( $product_id, $printing, 'ygo_printing' );
+			$this->set_taxonomy_term( $product_id, $language, 'ygo_language' );
 
 			do_action( 'tcg_manager_product_saved', $product_id, $card_id );
 			$created++;
 		}
+
+		// Delete uploaded file.
+		@unlink( $_FILES['csv_file']['tmp_name'] );
 
 		if ( $created > 0 && $errors > 0 ) {
 			$msg = sprintf( __( '%d creado(s), %d error(es): %s', 'tcg-manager' ), $created, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) );
@@ -478,6 +472,23 @@ class TCG_Product_Form {
 			 LIMIT 1",
 			$set_code
 		) );
+	}
+
+	/**
+	 * Set a taxonomy term on a product. Optionally auto-create if not exists.
+	 */
+	private function set_taxonomy_term( $product_id, $term_name, $taxonomy, $auto_create = false ) {
+		if ( empty( $term_name ) ) {
+			return;
+		}
+		$term = term_exists( $term_name, $taxonomy );
+		if ( ! $term && $auto_create ) {
+			$term = wp_insert_term( $term_name, $taxonomy );
+		}
+		if ( $term && ! is_wp_error( $term ) ) {
+			$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+			wp_set_object_terms( $product_id, $tid, $taxonomy );
+		}
 	}
 
 	/**
