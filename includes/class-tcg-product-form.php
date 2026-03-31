@@ -6,6 +6,7 @@ class TCG_Product_Form {
 	public function __construct() {
 		add_action( 'template_redirect', [ $this, 'process_form' ] );
 		add_action( 'template_redirect', [ $this, 'process_bulk_add' ] );
+		add_action( 'template_redirect', [ $this, 'process_csv_import' ] );
 		add_action( 'template_redirect', [ $this, 'process_delete' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
@@ -307,6 +308,168 @@ class TCG_Product_Form {
 		$msg = sprintf( __( '%d borrador(es) creado(s). Edítalos para asignar precio, stock y condición.', 'tcg-manager' ), $created );
 		wp_safe_redirect( add_query_arg( 'tcg_msg', 'bulk_created', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		exit;
+	}
+
+	/**
+	 * Process CSV import — creates draft products from pasted tab-separated data.
+	 */
+	public function process_csv_import() {
+		if ( ! isset( $_POST['tcg_action'] ) || $_POST['tcg_action'] !== 'csv_import' ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_POST['tcg_csv_nonce'] ?? '', 'tcg_csv_import' ) ) {
+			return;
+		}
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			return;
+		}
+
+		$raw = isset( $_POST['csv_data'] ) ? sanitize_textarea_field( wp_unslash( $_POST['csv_data'] ) ) : '';
+
+		if ( empty( $raw ) ) {
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( __( 'No pegaste datos.', 'tcg-manager' ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
+			exit;
+		}
+
+		$lines   = explode( "\n", $raw );
+		$user_id = get_current_user_id();
+		$created = 0;
+		$errors  = 0;
+
+		foreach ( $lines as $line ) {
+			$line = trim( $line );
+			if ( empty( $line ) ) {
+				continue;
+			}
+
+			$cols = preg_split( '/\t+/', $line );
+			if ( count( $cols ) < 3 ) {
+				$errors++;
+				continue;
+			}
+
+			// Parse columns: Set Name | Product Name | Number | Rarity | Condition | Quantity | Printing
+			$set_name     = trim( $cols[0] ?? '' );
+			$product_name = trim( $cols[1] ?? '' );
+			$set_code     = trim( $cols[2] ?? '' );
+			$rarity_raw   = trim( $cols[3] ?? '' );
+			$condition    = trim( $cols[4] ?? '' );
+			$quantity     = absint( $cols[5] ?? 1 );
+			$printing     = trim( $cols[6] ?? '' );
+
+			// Skip header row.
+			if ( strtolower( $product_name ) === 'product name' || strtolower( $set_name ) === 'set name' ) {
+				continue;
+			}
+
+			if ( empty( $product_name ) || empty( $set_code ) ) {
+				$errors++;
+				continue;
+			}
+
+			// Find ygo_card by _ygo_set_code.
+			$card_id = $this->find_card_by_set_code( $set_code );
+			if ( ! $card_id ) {
+				$errors++;
+				continue;
+			}
+
+			// Filter rarity: remove "Short Print", keep rest.
+			$rarity = $this->clean_rarity( $rarity_raw );
+
+			// Create draft product.
+			$product_id = wp_insert_post( [
+				'post_type'   => 'product',
+				'post_status' => 'draft',
+				'post_author' => $user_id,
+				'post_title'  => get_the_title( $card_id ),
+			] );
+
+			if ( is_wp_error( $product_id ) ) {
+				$errors++;
+				continue;
+			}
+
+			// Meta.
+			update_post_meta( $product_id, '_linked_ygo_card', $card_id );
+			update_post_meta( $product_id, '_manage_stock', 'yes' );
+			update_post_meta( $product_id, '_stock', $quantity );
+			update_post_meta( $product_id, '_stock_status', $quantity > 0 ? 'instock' : 'outofstock' );
+			wp_set_object_terms( $product_id, 'simple', 'product_type' );
+
+			// Taxonomies.
+			if ( $rarity ) {
+				$term = term_exists( $rarity, 'ygo_rarity' );
+				if ( ! $term ) {
+					$term = wp_insert_term( $rarity, 'ygo_rarity' );
+				}
+				if ( ! is_wp_error( $term ) ) {
+					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+					wp_set_object_terms( $product_id, $tid, 'ygo_rarity' );
+				}
+			}
+
+			if ( $condition ) {
+				$term = term_exists( $condition, 'ygo_condition' );
+				if ( $term ) {
+					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+					wp_set_object_terms( $product_id, $tid, 'ygo_condition' );
+				}
+			}
+
+			if ( $printing ) {
+				$term = term_exists( $printing, 'ygo_printing' );
+				if ( $term ) {
+					$tid = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+					wp_set_object_terms( $product_id, $tid, 'ygo_printing' );
+				}
+			}
+
+			do_action( 'tcg_manager_product_saved', $product_id, $card_id );
+			$created++;
+		}
+
+		if ( $created > 0 ) {
+			wp_safe_redirect( add_query_arg( 'tcg_msg', 'csv_imported', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		} else {
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
+		}
+		exit;
+	}
+
+	/**
+	 * Find a ygo_card post by _ygo_set_code meta.
+	 */
+	private function find_card_by_set_code( $set_code ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT p.ID FROM {$wpdb->posts} p
+			 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_ygo_set_code' AND pm.meta_value = %s
+			 WHERE p.post_type = 'ygo_card' AND p.post_status = 'publish'
+			 LIMIT 1",
+			$set_code
+		) );
+	}
+
+	/**
+	 * Clean rarity string: remove "Short Print", return first valid rarity.
+	 */
+	private function clean_rarity( $raw ) {
+		if ( empty( $raw ) ) {
+			return '';
+		}
+
+		$parts = array_map( 'trim', explode( '/', $raw ) );
+		$clean = [];
+		foreach ( $parts as $part ) {
+			if ( strtolower( $part ) !== 'short print' ) {
+				$clean[] = $part;
+			}
+		}
+
+		return ! empty( $clean ) ? $clean[0] : '';
 	}
 
 	/**

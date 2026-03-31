@@ -4,7 +4,7 @@ defined( 'ABSPATH' ) || exit;
 class TCG_Dashboard {
 
 	private static $sections = [
-		'home', 'products', 'new-product', 'edit-product', 'bulk-add',
+		'home', 'products', 'new-product', 'edit-product', 'bulk-add', 'import-csv',
 		'orders', 'order-view', 'shipping', 'earnings', 'profile',
 		'onboarding',
 	];
@@ -200,7 +200,8 @@ class TCG_Dashboard {
 		$nav_items = [
 			'home'     => [ 'label' => __( 'Inicio', 'tcg-manager' ),    'icon' => 'dashicons-admin-home' ],
 			'products' => [ 'label' => __( 'Productos', 'tcg-manager' ), 'icon' => 'dashicons-products' ],
-			'bulk-add' => [ 'label' => __( 'Agregar por Set', 'tcg-manager' ), 'icon' => 'dashicons-grid-view' ],
+			'bulk-add'   => [ 'label' => __( 'Agregar por Set', 'tcg-manager' ), 'icon' => 'dashicons-grid-view' ],
+			'import-csv' => [ 'label' => __( 'Importar CSV', 'tcg-manager' ), 'icon' => 'dashicons-upload' ],
 			'orders'   => [ 'label' => __( 'Pedidos', 'tcg-manager' ),   'icon' => 'dashicons-list-view' ],
 			'shipping' => [ 'label' => __( 'Envío', 'tcg-manager' ),     'icon' => 'dashicons-car' ],
 			'earnings' => [ 'label' => __( 'Ganancias', 'tcg-manager' ), 'icon' => 'dashicons-chart-line' ],
@@ -247,6 +248,7 @@ class TCG_Dashboard {
 				'product_saved'   => __( 'Producto guardado correctamente.', 'tcg-manager' ),
 				'product_deleted' => __( 'Producto eliminado.', 'tcg-manager' ),
 				'bulk_created'    => __( 'Borradores creados. Edítalos para asignar precio, stock y condición antes de publicar.', 'tcg-manager' ),
+				'csv_imported'    => __( 'Importación CSV completada. Revisa los borradores para asignar precio antes de publicar.', 'tcg-manager' ),
 				'profile_saved'   => __( 'Perfil actualizado.', 'tcg-manager' ),
 				'shipping_saved'  => __( 'Tarifas de envío actualizadas.', 'tcg-manager' ),
 				'onboarding_done' => __( '¡Tu tienda está lista! Ya puedes empezar a vender.', 'tcg-manager' ),
