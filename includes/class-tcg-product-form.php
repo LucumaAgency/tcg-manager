@@ -338,10 +338,11 @@ class TCG_Product_Form {
 			exit;
 		}
 
-		$lines   = explode( "\n", $raw );
-		$user_id = get_current_user_id();
-		$created = 0;
-		$errors  = 0;
+		$lines       = explode( "\n", $raw );
+		$user_id     = get_current_user_id();
+		$created     = 0;
+		$errors      = 0;
+		$error_names = [];
 
 		// Detect separator from first line.
 		$first_line = trim( $lines[0] ?? '' );
@@ -384,9 +385,13 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Find ygo_card by _ygo_set_code.
+			// Find ygo_card by _ygo_set_code, fallback to title search.
 			$card_id = $this->find_card_by_set_code( $set_code );
 			if ( ! $card_id ) {
+				$card_id = $this->find_card_by_name( $product_name );
+			}
+			if ( ! $card_id ) {
+				$error_names[] = $product_name . ' [' . $set_code . ']';
 				$errors++;
 				continue;
 			}
@@ -446,10 +451,17 @@ class TCG_Product_Form {
 			$created++;
 		}
 
-		if ( $created > 0 ) {
+		if ( $created > 0 && $errors > 0 ) {
+			$msg = sprintf( __( '%d creado(s), %d error(es): %s', 'tcg-manager' ), $created, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) );
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		} elseif ( $created > 0 ) {
 			wp_safe_redirect( add_query_arg( 'tcg_msg', 'csv_imported', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		} else {
-			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors ) ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
+			$msg = sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors );
+			if ( ! empty( $error_names ) ) {
+				$msg .= ' ' . __( 'No encontradas:', 'tcg-manager' ) . ' ' . implode( ', ', array_slice( $error_names, 0, 10 ) );
+			}
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
 		}
 		exit;
 	}
@@ -465,6 +477,20 @@ class TCG_Product_Form {
 			 WHERE p.post_type = 'ygo_card' AND p.post_status = 'publish'
 			 LIMIT 1",
 			$set_code
+		) );
+	}
+
+	/**
+	 * Find a ygo_card post by title (partial match with set code in title).
+	 */
+	private function find_card_by_name( $name ) {
+		global $wpdb;
+		$like = $wpdb->esc_like( $name ) . '%';
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts}
+			 WHERE post_type = 'ygo_card' AND post_status = 'publish' AND post_title LIKE %s
+			 LIMIT 1",
+			$like
 		) );
 	}
 
