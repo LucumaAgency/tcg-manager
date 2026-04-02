@@ -366,19 +366,18 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Parse columns: Set Name | Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price
-			$set_name     = trim( $cols[0] ?? '' );
-			$product_name = trim( $cols[1] ?? '' );
-			$set_code     = trim( $cols[2] ?? '' );
-			$rarity_raw   = trim( $cols[3] ?? '' );
-			$condition    = trim( $cols[4] ?? '' );
-			$quantity     = absint( $cols[5] ?? 0 );
-			$printing     = trim( $cols[6] ?? '' );
-			$language     = trim( $cols[7] ?? '' );
-			$price        = floatval( $cols[8] ?? 0 );
+			// Parse columns: Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price
+			$product_name = trim( $cols[0] ?? '' );
+			$set_code     = trim( $cols[1] ?? '' );
+			$rarity_raw   = trim( $cols[2] ?? '' );
+			$condition    = trim( $cols[3] ?? '' );
+			$quantity     = absint( $cols[4] ?? 0 );
+			$printing     = trim( $cols[5] ?? '' );
+			$language     = trim( $cols[6] ?? '' );
+			$price        = floatval( $cols[7] ?? 0 );
 
 			// Skip header row.
-			if ( strtolower( $product_name ) === 'product name' || strtolower( $set_name ) === 'set name' ) {
+			if ( strtolower( $product_name ) === 'product name' || strtolower( $product_name ) === 'nombre' ) {
 				continue;
 			}
 

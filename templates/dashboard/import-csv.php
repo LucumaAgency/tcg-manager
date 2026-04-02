@@ -12,9 +12,9 @@ defined( 'ABSPATH' ) || exit;
 
 <div style="margin-bottom:16px;padding:14px;background:#f8f9fa;border-radius:6px;font-size:13px;line-height:1.6;color:#555;">
 	<strong><?php esc_html_e( 'Formato esperado (columnas):', 'tcg-manager' ); ?></strong><br>
-	<code>Set Name | Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price</code><br><br>
+	<code>Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price</code><br><br>
 	<strong><?php esc_html_e( 'Ejemplo:', 'tcg-manager' ); ?></strong><br>
-	<code>Legendary Modern Decks 2026, Pre-Preparation of Rites, L26D-ENM11, Common, Near Mint, 3, 1st Edition, English, 5.00</code><br><br>
+	<code>Pre-Preparation of Rites, L26D-ENM11, Common, Near Mint, 3, 1st Edition, English, 5.00</code><br><br>
 	<?php esc_html_e( 'Language y Price son opcionales. Si falta algun dato se crea como borrador, si esta completo se publica. "Short Print" se filtra de la rareza.', 'tcg-manager' ); ?>
 </div>
 
@@ -41,7 +41,6 @@ defined( 'ABSPATH' ) || exit;
 		<div class="tcg-table-responsive">
 			<table class="tcg-table" id="tcg-csv-table">
 				<thead><tr>
-					<th>Set</th>
 					<th><?php esc_html_e( 'Carta', 'tcg-manager' ); ?></th>
 					<th><?php esc_html_e( 'Codigo', 'tcg-manager' ); ?></th>
 					<th><?php esc_html_e( 'Rareza', 'tcg-manager' ); ?></th>
@@ -108,25 +107,23 @@ defined( 'ABSPATH' ) || exit;
 
 		for (var i = 0; i < lines.length; i++) {
 			var cols = lines[i].split(sep);
-			if (cols.length < 3) continue;
+			if (cols.length < 2) continue;
 
-			var setName = cols[0] ? cols[0].trim() : '';
-			var name    = cols[1] ? cols[1].trim() : '';
-			var code    = cols[2] ? cols[2].trim() : '';
+			var name = cols[0] ? cols[0].trim() : '';
+			var code = cols[1] ? cols[1].trim() : '';
 
-			if (name.toLowerCase() === 'product name' || setName.toLowerCase() === 'set name') continue;
-			if (!name || !code) continue;
+			if (name.toLowerCase() === 'product name' || name.toLowerCase() === 'nombre') continue;
+			if (!name && !code) continue;
 
 			rows.push({
-				set:       setName,
 				name:      name,
 				code:      code,
-				rarity:    cols[3] ? cols[3].trim() : '',
-				condition: cols[4] ? cols[4].trim() : '',
-				qty:       cols[5] ? cols[5].trim() : '',
-				printing:  cols[6] ? cols[6].trim() : '',
-				language:  cols[7] ? cols[7].trim() : '',
-				price:     cols[8] ? cols[8].trim() : ''
+				rarity:    cols[2] ? cols[2].trim() : '',
+				condition: cols[3] ? cols[3].trim() : '',
+				qty:       cols[4] ? cols[4].trim() : '',
+				printing:  cols[5] ? cols[5].trim() : '',
+				language:  cols[6] ? cols[6].trim() : '',
+				price:     cols[7] ? cols[7].trim() : ''
 			});
 		}
 
@@ -140,7 +137,6 @@ defined( 'ABSPATH' ) || exit;
 		for (var j = 0; j < rows.length; j++) {
 			var r = rows[j];
 			html += '<tr>';
-			html += '<td>' + esc(r.set) + '</td>';
 			html += '<td>' + esc(r.name) + '</td>';
 			html += '<td><code>' + esc(r.code) + '</code></td>';
 			html += '<td>' + esc(r.rarity) + '</td>';
