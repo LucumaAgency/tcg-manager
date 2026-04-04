@@ -341,6 +341,7 @@ class TCG_Product_Form {
 		$lines       = explode( "\n", $raw );
 		$user_id     = get_current_user_id();
 		$created     = 0;
+		$updated     = 0;
 		$errors      = 0;
 		$error_names = [];
 
@@ -400,54 +401,74 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Determine status: draft if missing any data, publish if complete.
-			$has_all_data = $price > 0 && $quantity > 0 && $condition && $printing && $rarity_raw;
-			$post_status  = $has_all_data ? 'publish' : 'draft';
-
 			// Filter rarity: remove "Short Print", keep rest.
 			$rarity = $this->clean_rarity( $rarity_raw );
 
-			// Create product.
-			$product_id = wp_insert_post( [
-				'post_type'   => 'product',
-				'post_status' => $post_status,
-				'post_author' => $user_id,
-				'post_title'  => get_the_title( $card_id ),
-			] );
+			// Check for existing product with same card + rarity + condition + printing + language.
+			$existing_id = $this->find_existing_vendor_product( $user_id, $card_id, $rarity, $condition, $printing, $language );
 
-			if ( is_wp_error( $product_id ) ) {
-				$errors++;
-				continue;
+			if ( $existing_id ) {
+				// Update existing product.
+				$product_id = $existing_id;
+				if ( $quantity > 0 ) {
+					update_post_meta( $product_id, '_stock', $quantity );
+					update_post_meta( $product_id, '_stock_status', 'instock' );
+				}
+				if ( $price > 0 ) {
+					update_post_meta( $product_id, '_regular_price', $price );
+					update_post_meta( $product_id, '_price', $price );
+				}
+				$updated++;
+			} else {
+				// Determine status: draft if missing any data, publish if complete.
+				$has_all_data = $price > 0 && $quantity > 0 && $condition && $printing && $rarity_raw;
+				$post_status  = $has_all_data ? 'publish' : 'draft';
+
+				// Create product.
+				$product_id = wp_insert_post( [
+					'post_type'   => 'product',
+					'post_status' => $post_status,
+					'post_author' => $user_id,
+					'post_title'  => get_the_title( $card_id ),
+				] );
+
+				if ( is_wp_error( $product_id ) ) {
+					$errors++;
+					continue;
+				}
+
+				// Meta.
+				update_post_meta( $product_id, '_linked_ygo_card', $card_id );
+				update_post_meta( $product_id, '_manage_stock', 'yes' );
+				update_post_meta( $product_id, '_stock', $quantity );
+				update_post_meta( $product_id, '_stock_status', $quantity > 0 ? 'instock' : 'outofstock' );
+				if ( $price > 0 ) {
+					update_post_meta( $product_id, '_regular_price', $price );
+					update_post_meta( $product_id, '_price', $price );
+				}
+				wp_set_object_terms( $product_id, 'simple', 'product_type' );
+
+				// Taxonomies.
+				$this->set_taxonomy_term( $product_id, $rarity, 'ygo_rarity', true );
+				$this->set_taxonomy_term( $product_id, $condition, 'ygo_condition' );
+				$this->set_taxonomy_term( $product_id, $printing, 'ygo_printing' );
+				$this->set_taxonomy_term( $product_id, $language, 'ygo_language' );
+
+				$created++;
 			}
-
-			// Meta.
-			update_post_meta( $product_id, '_linked_ygo_card', $card_id );
-			update_post_meta( $product_id, '_manage_stock', 'yes' );
-			update_post_meta( $product_id, '_stock', $quantity );
-			update_post_meta( $product_id, '_stock_status', $quantity > 0 ? 'instock' : 'outofstock' );
-			if ( $price > 0 ) {
-				update_post_meta( $product_id, '_regular_price', $price );
-				update_post_meta( $product_id, '_price', $price );
-			}
-			wp_set_object_terms( $product_id, 'simple', 'product_type' );
-
-			// Taxonomies.
-			$this->set_taxonomy_term( $product_id, $rarity, 'ygo_rarity', true );
-			$this->set_taxonomy_term( $product_id, $condition, 'ygo_condition' );
-			$this->set_taxonomy_term( $product_id, $printing, 'ygo_printing' );
-			$this->set_taxonomy_term( $product_id, $language, 'ygo_language' );
 
 			do_action( 'tcg_manager_product_saved', $product_id, $card_id );
-			$created++;
 		}
 
 		// Delete uploaded file.
 		@unlink( $_FILES['csv_file']['tmp_name'] );
 
-		if ( $created > 0 && $errors > 0 ) {
-			$msg = sprintf( __( '%d creado(s), %d error(es): %s', 'tcg-manager' ), $created, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) );
+		$total_ok = $created + $updated;
+		if ( $total_ok > 0 && $errors > 0 ) {
+			$msg = sprintf( __( '%d creado(s), %d actualizado(s), %d error(es): %s', 'tcg-manager' ), $created, $updated, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) );
 			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
-		} elseif ( $created > 0 ) {
+		} elseif ( $total_ok > 0 ) {
+			$msg = sprintf( __( '%d creado(s), %d actualizado(s).', 'tcg-manager' ), $created, $updated );
 			wp_safe_redirect( add_query_arg( 'tcg_msg', 'csv_imported', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		} else {
 			$msg = sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors );
@@ -471,6 +492,58 @@ class TCG_Product_Form {
 			 LIMIT 1",
 			$set_code
 		) );
+	}
+
+	/**
+	 * Find existing vendor product with same card + rarity + condition + printing + language.
+	 */
+	private function find_existing_vendor_product( $vendor_id, $card_id, $rarity, $condition, $printing, $language ) {
+		$args = [
+			'post_type'      => 'product',
+			'post_status'    => [ 'publish', 'draft', 'pending' ],
+			'author'         => $vendor_id,
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+			'meta_query'     => [
+				[ 'key' => '_linked_ygo_card', 'value' => $card_id ],
+			],
+		];
+
+		// Build taxonomy query for matching variant.
+		$tax_query = [];
+		$checks    = [
+			'ygo_rarity'    => $rarity,
+			'ygo_condition' => $condition,
+			'ygo_printing'  => $printing,
+			'ygo_language'  => $language,
+		];
+
+		foreach ( $checks as $taxonomy => $term_name ) {
+			if ( $term_name ) {
+				$term = get_term_by( 'name', $term_name, $taxonomy );
+				if ( $term ) {
+					$tax_query[] = [
+						'taxonomy' => $taxonomy,
+						'field'    => 'term_id',
+						'terms'    => $term->term_id,
+					];
+				}
+			} else {
+				// Match products that also don't have this taxonomy set.
+				$tax_query[] = [
+					'taxonomy' => $taxonomy,
+					'operator' => 'NOT EXISTS',
+				];
+			}
+		}
+
+		if ( ! empty( $tax_query ) ) {
+			$tax_query['relation'] = 'AND';
+			$args['tax_query']     = $tax_query;
+		}
+
+		$results = get_posts( $args );
+		return ! empty( $results ) ? $results[0] : 0;
 	}
 
 	/**
