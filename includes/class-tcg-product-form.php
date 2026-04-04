@@ -7,6 +7,7 @@ class TCG_Product_Form {
 		add_action( 'template_redirect', [ $this, 'process_form' ] );
 		add_action( 'template_redirect', [ $this, 'process_bulk_add' ] );
 		add_action( 'template_redirect', [ $this, 'process_csv_import' ] );
+		add_action( 'template_redirect', [ $this, 'process_csv_export' ] );
 		add_action( 'template_redirect', [ $this, 'process_delete' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
@@ -477,6 +478,90 @@ class TCG_Product_Form {
 			}
 			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
 		}
+		exit;
+	}
+
+	/**
+	 * Export vendor products as CSV download.
+	 */
+	public function process_csv_export() {
+		if ( ! isset( $_GET['tcg_action'] ) || $_GET['tcg_action'] !== 'export_csv' ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_GET['_wpnonce'] ?? '', 'tcg_csv_export' ) ) {
+			return;
+		}
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			return;
+		}
+
+		$vendor_id = get_current_user_id();
+
+		$query = new WP_Query( [
+			'post_type'      => 'product',
+			'post_status'    => [ 'publish', 'draft', 'pending' ],
+			'author'         => $vendor_id,
+			'posts_per_page' => -1,
+			'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
+		] );
+
+		$shop_name = sanitize_title( TCG_Vendor_Profile::get_shop_name( $vendor_id ) );
+		$filename  = 'productos-' . $shop_name . '-' . date( 'Y-m-d' ) . '.csv';
+
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Pragma: no-cache' );
+		header( 'Expires: 0' );
+
+		$output = fopen( 'php://output', 'w' );
+
+		// BOM for Excel UTF-8.
+		fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) );
+
+		// Header row.
+		fputcsv( $output, [
+			'Product Name',
+			'Number',
+			'Rarity',
+			'Condition',
+			'Quantity',
+			'Printing',
+			'Language',
+			'Price',
+			'Status',
+		] );
+
+		foreach ( $query->posts as $post ) {
+			$product = wc_get_product( $post->ID );
+			if ( ! $product ) {
+				continue;
+			}
+
+			$card_id  = (int) get_post_meta( $post->ID, '_linked_ygo_card', true );
+			$set_code = $card_id ? get_post_meta( $card_id, '_ygo_set_code', true ) : '';
+
+			$rarity    = wp_get_post_terms( $post->ID, 'ygo_rarity', [ 'fields' => 'names' ] );
+			$condition = wp_get_post_terms( $post->ID, 'ygo_condition', [ 'fields' => 'names' ] );
+			$printing  = wp_get_post_terms( $post->ID, 'ygo_printing', [ 'fields' => 'names' ] );
+			$language  = wp_get_post_terms( $post->ID, 'ygo_language', [ 'fields' => 'names' ] );
+
+			fputcsv( $output, [
+				$post->post_title,
+				$set_code,
+				! is_wp_error( $rarity ) && ! empty( $rarity ) ? $rarity[0] : '',
+				! is_wp_error( $condition ) && ! empty( $condition ) ? $condition[0] : '',
+				$product->get_stock_quantity() ?? 0,
+				! is_wp_error( $printing ) && ! empty( $printing ) ? $printing[0] : '',
+				! is_wp_error( $language ) && ! empty( $language ) ? $language[0] : '',
+				$product->get_regular_price() ?? '',
+				$post->post_status,
+			] );
+		}
+
+		fclose( $output );
+		wp_reset_postdata();
 		exit;
 	}
 

@@ -20,11 +20,16 @@ if ( $search_term ) {
 $query = new WP_Query( $query_args );
 ?>
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
 	<h2 style="margin:0;"><?php esc_html_e( 'Mis Productos', 'tcg-manager' ); ?></h2>
-	<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'new-product' ) ); ?>" class="tcg-btn tcg-btn-primary">
+	<div style="display:flex;gap:8px;flex-wrap:wrap;">
+		<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'tcg_action', 'export_csv' ), 'tcg_csv_export' ) ); ?>" class="tcg-btn tcg-btn-secondary">
+			<?php esc_html_e( 'Exportar CSV', 'tcg-manager' ); ?>
+		</a>
+		<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'new-product' ) ); ?>" class="tcg-btn tcg-btn-primary">
 		+ <?php esc_html_e( 'Nuevo Producto', 'tcg-manager' ); ?>
 	</a>
+	</div>
 </div>
 
 <!-- Product search -->
