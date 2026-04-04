@@ -345,6 +345,7 @@ class TCG_Product_Form {
 		$updated     = 0;
 		$errors      = 0;
 		$error_names = [];
+		$warn_names  = [];
 
 		// Detect separator from first line.
 		$first_line = trim( $lines[0] ?? '' );
@@ -376,7 +377,8 @@ class TCG_Product_Form {
 			$quantity     = absint( $cols[4] ?? 0 );
 			$printing     = trim( $cols[5] ?? '' );
 			$language     = trim( $cols[6] ?? '' );
-			$price        = floatval( $cols[7] ?? 0 );
+			$price_raw    = str_replace( ',', '.', trim( $cols[7] ?? '' ) );
+			$price        = is_numeric( $price_raw ) ? floatval( $price_raw ) : 0;
 
 			// Skip header row.
 			if ( strtolower( $product_name ) === 'product name' || strtolower( $product_name ) === 'nombre' ) {
@@ -404,6 +406,24 @@ class TCG_Product_Form {
 
 			// Filter rarity: remove "Short Print", keep rest.
 			$rarity = $this->clean_rarity( $rarity_raw );
+
+			// Validate taxonomy values — clear invalid ones and warn.
+			$tax_validations = [
+				'condition' => [ 'value' => &$condition, 'taxonomy' => 'ygo_condition' ],
+				'printing'  => [ 'value' => &$printing,  'taxonomy' => 'ygo_printing' ],
+				'language'  => [ 'value' => &$language,  'taxonomy' => 'ygo_language' ],
+			];
+			foreach ( $tax_validations as $field => $info ) {
+				if ( $info['value'] && ! term_exists( $info['value'], $info['taxonomy'] ) ) {
+					$warn_names[] = $product_name . ': ' . $field . ' "' . $info['value'] . '" no existe';
+					$info['value'] = ''; // Clear invalid value.
+				}
+			}
+
+			// Validate price.
+			if ( ! empty( trim( $cols[7] ?? '' ) ) && $price <= 0 ) {
+				$warn_names[] = $product_name . ': precio "' . trim( $cols[7] ?? '' ) . '" no valido';
+			}
 
 			// Check for existing product with same card + rarity + condition + printing + language.
 			$existing_id = $this->find_existing_vendor_product( $user_id, $card_id, $rarity, $condition, $printing, $language );
@@ -464,12 +484,16 @@ class TCG_Product_Form {
 		// Delete uploaded file.
 		@unlink( $_FILES['csv_file']['tmp_name'] );
 
-		$total_ok = $created + $updated;
+		$total_ok  = $created + $updated;
+		$warnings  = ! empty( $warn_names ) ? ' | ' . implode( '; ', array_slice( $warn_names, 0, 5 ) ) : '';
+
 		if ( $total_ok > 0 && $errors > 0 ) {
-			$msg = sprintf( __( '%d creado(s), %d actualizado(s), %d error(es): %s', 'tcg-manager' ), $created, $updated, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) );
+			$msg = sprintf( __( '%d creado(s), %d actualizado(s), %d error(es): %s', 'tcg-manager' ), $created, $updated, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) ) . $warnings;
+			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		} elseif ( $total_ok > 0 && ! empty( $warn_names ) ) {
+			$msg = sprintf( __( '%d creado(s), %d actualizado(s). Advertencias: %s', 'tcg-manager' ), $created, $updated, implode( '; ', array_slice( $warn_names, 0, 5 ) ) );
 			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		} elseif ( $total_ok > 0 ) {
-			$msg = sprintf( __( '%d creado(s), %d actualizado(s).', 'tcg-manager' ), $created, $updated );
 			wp_safe_redirect( add_query_arg( 'tcg_msg', 'csv_imported', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		} else {
 			$msg = sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors );
