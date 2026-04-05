@@ -787,7 +787,7 @@
 	}
 
 	.tcg-store-products {
-		grid-template-columns: repeat(2, 1fr);
+		grid-template-columns: 1fr;
 		gap: 12px;
 	}
 
@@ -836,7 +836,7 @@
 	}
 
 	.tcg-store-products {
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: 1fr;
 		gap: 8px;
 	}
 }
