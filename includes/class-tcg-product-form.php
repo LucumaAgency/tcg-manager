@@ -364,7 +364,8 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			$cols = explode( $separator, $line );
+			// Use str_getcsv to handle quoted fields with commas inside.
+			$cols = str_getcsv( $line, $separator, '"', '\\' );
 			if ( count( $cols ) < 3 ) {
 				$errors++;
 				continue;

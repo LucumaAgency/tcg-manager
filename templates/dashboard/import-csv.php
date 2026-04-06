@@ -94,6 +94,26 @@ defined( 'ABSPATH' ) || exit;
 		return ',';
 	}
 
+	// Parse a CSV line handling quoted fields (e.g. "Name, with comma").
+	function parseCsvLine(line, sep) {
+		var cols = [];
+		var current = '';
+		var inQuotes = false;
+		for (var i = 0; i < line.length; i++) {
+			var c = line[i];
+			if (c === '"') {
+				inQuotes = !inQuotes;
+			} else if (c === sep && !inQuotes) {
+				cols.push(current.trim());
+				current = '';
+			} else {
+				current += c;
+			}
+		}
+		cols.push(current.trim());
+		return cols;
+	}
+
 	function parsePreview(raw) {
 		var lines = raw.split('\n').filter(function(l) { return l.trim(); });
 		if (!lines.length) {
@@ -106,7 +126,7 @@ defined( 'ABSPATH' ) || exit;
 		var rows = [];
 
 		for (var i = 0; i < lines.length; i++) {
-			var cols = lines[i].split(sep);
+			var cols = parseCsvLine(lines[i], sep);
 			if (cols.length < 2) continue;
 
 			var name = cols[0] ? cols[0].trim() : '';
