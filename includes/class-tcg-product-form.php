@@ -369,16 +369,16 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Parse columns: Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price
+			// Parse columns: Product Name | Number | Rarity | Condition | Price | Quantity | Printing | Language
 			$product_name = trim( $cols[0] ?? '' );
 			$set_code     = trim( $cols[1] ?? '' );
 			$rarity_raw   = trim( $cols[2] ?? '' );
 			$condition    = trim( $cols[3] ?? '' );
-			$quantity     = absint( $cols[4] ?? 0 );
-			$printing     = trim( $cols[5] ?? '' );
-			$language     = trim( $cols[6] ?? '' );
-			$price_raw    = str_replace( ',', '.', trim( $cols[7] ?? '' ) );
+			$price_raw    = str_replace( ',', '.', trim( $cols[4] ?? '' ) );
 			$price        = is_numeric( $price_raw ) ? floatval( $price_raw ) : 0;
+			$quantity     = absint( $cols[5] ?? 0 );
+			$printing     = trim( $cols[6] ?? '' );
+			$language     = trim( $cols[7] ?? '' );
 
 			// Skip header row.
 			if ( strtolower( $product_name ) === 'product name' || strtolower( $product_name ) === 'nombre' ) {
@@ -550,10 +550,10 @@ class TCG_Product_Form {
 			'Number',
 			'Rarity',
 			'Condition',
+			'Price',
 			'Quantity',
 			'Printing',
 			'Language',
-			'Price',
 			'Status',
 		] );
 
@@ -576,10 +576,10 @@ class TCG_Product_Form {
 				$set_code,
 				! is_wp_error( $rarity ) && ! empty( $rarity ) ? $rarity[0] : '',
 				! is_wp_error( $condition ) && ! empty( $condition ) ? $condition[0] : '',
+				$product->get_regular_price() ?? '',
 				$product->get_stock_quantity() ?? 0,
 				! is_wp_error( $printing ) && ! empty( $printing ) ? $printing[0] : '',
 				! is_wp_error( $language ) && ! empty( $language ) ? $language[0] : '',
-				$product->get_regular_price() ?? '',
 				$post->post_status,
 			] );
 		}

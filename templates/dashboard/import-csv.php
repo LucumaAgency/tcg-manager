@@ -12,10 +12,10 @@ defined( 'ABSPATH' ) || exit;
 
 <div style="margin-bottom:16px;padding:14px;background:#f8f9fa;border-radius:6px;font-size:13px;line-height:1.6;color:#555;">
 	<strong><?php esc_html_e( 'Formato esperado (columnas):', 'tcg-manager' ); ?></strong><br>
-	<code>Product Name | Number | Rarity | Condition | Quantity | Printing | Language | Price</code><br><br>
+	<code>Product Name | Number | Rarity | Condition | Price | Quantity | Printing | Language</code><br><br>
 	<strong><?php esc_html_e( 'Ejemplo:', 'tcg-manager' ); ?></strong><br>
-	<code>Pre-Preparation of Rites, L26D-ENM11, Common, Near Mint, 3, 1st Edition, English, 5.00</code><br><br>
-	<?php esc_html_e( 'Language y Price son opcionales. Si falta algun dato se crea como borrador, si esta completo se publica. "Short Print" se filtra de la rareza.', 'tcg-manager' ); ?>
+	<code>Pre-Preparation of Rites, L26D-ENM11, Common, Near Mint, 5.00, 3, 1st Edition, English</code><br><br>
+	<?php esc_html_e( 'Si falta algun dato se crea como borrador, si esta completo se publica. "Short Print" se filtra de la rareza.', 'tcg-manager' ); ?>
 </div>
 
 <form method="post" id="tcg-csv-import-form" enctype="multipart/form-data">
@@ -45,10 +45,10 @@ defined( 'ABSPATH' ) || exit;
 					<th><?php esc_html_e( 'Codigo', 'tcg-manager' ); ?></th>
 					<th><?php esc_html_e( 'Rareza', 'tcg-manager' ); ?></th>
 					<th><?php esc_html_e( 'Condicion', 'tcg-manager' ); ?></th>
+					<th><?php esc_html_e( 'Precio', 'tcg-manager' ); ?></th>
 					<th><?php esc_html_e( 'Stock', 'tcg-manager' ); ?></th>
 					<th>Printing</th>
 					<th><?php esc_html_e( 'Idioma', 'tcg-manager' ); ?></th>
-					<th><?php esc_html_e( 'Precio', 'tcg-manager' ); ?></th>
 				</tr></thead>
 				<tbody></tbody>
 			</table>
@@ -120,10 +120,10 @@ defined( 'ABSPATH' ) || exit;
 				code:      code,
 				rarity:    cols[2] ? cols[2].trim() : '',
 				condition: cols[3] ? cols[3].trim() : '',
-				qty:       cols[4] ? cols[4].trim() : '',
-				printing:  cols[5] ? cols[5].trim() : '',
-				language:  cols[6] ? cols[6].trim() : '',
-				price:     cols[7] ? cols[7].trim() : ''
+				price:     cols[4] ? cols[4].trim() : '',
+				qty:       cols[5] ? cols[5].trim() : '',
+				printing:  cols[6] ? cols[6].trim() : '',
+				language:  cols[7] ? cols[7].trim() : ''
 			});
 		}
 
@@ -141,10 +141,10 @@ defined( 'ABSPATH' ) || exit;
 			html += '<td><code>' + esc(r.code) + '</code></td>';
 			html += '<td>' + esc(r.rarity) + '</td>';
 			html += '<td>' + esc(r.condition) + '</td>';
+			html += '<td>' + esc(r.price) + '</td>';
 			html += '<td>' + esc(r.qty) + '</td>';
 			html += '<td>' + esc(r.printing) + '</td>';
 			html += '<td>' + esc(r.language) + '</td>';
-			html += '<td>' + esc(r.price) + '</td>';
 			html += '</tr>';
 		}
 
