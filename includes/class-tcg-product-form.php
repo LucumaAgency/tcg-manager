@@ -358,6 +358,10 @@ class TCG_Product_Form {
 			$separator = ',';
 		}
 
+		// Detect header format: TCGPlayer export or simple format.
+		$col_map    = null;
+		$header_row = true;
+
 		foreach ( $lines as $line ) {
 			$line = trim( $line );
 			if ( empty( $line ) ) {
@@ -371,20 +375,49 @@ class TCG_Product_Form {
 				continue;
 			}
 
-			// Parse columns: Product Name | Number | Rarity | Condition | Price | Quantity | Printing | Language
-			$product_name = trim( $cols[0] ?? '' );
-			$set_code     = trim( $cols[1] ?? '' );
-			$rarity_raw   = trim( $cols[2] ?? '' );
-			$condition    = trim( $cols[3] ?? '' );
-			$price_raw    = str_replace( ',', '.', trim( $cols[4] ?? '' ) );
-			$price        = is_numeric( $price_raw ) ? floatval( $price_raw ) : 0;
-			$quantity     = absint( $cols[5] ?? 0 );
-			$printing     = trim( $cols[6] ?? '' );
-			$language     = trim( $cols[7] ?? '' );
+			// Detect and parse header row.
+			if ( $header_row ) {
+				$header_row = false;
+				$normalized = array_map( function( $h ) { return strtolower( trim( $h ) ); }, $cols );
 
-			// Skip header row.
-			if ( strtolower( $product_name ) === 'product name' || strtolower( $product_name ) === 'nombre' ) {
-				continue;
+				// Check if this is a TCGPlayer format.
+				if ( in_array( 'tcgplayer id', $normalized, true ) || in_array( 'product line', $normalized, true ) ) {
+					$col_map = array_flip( $normalized );
+					continue;
+				}
+
+				// Check if this is our simple format header.
+				if ( in_array( 'product name', $normalized, true ) || in_array( 'nombre', $normalized, true ) ) {
+					continue;
+				}
+
+				// No header detected — process this line as data.
+			}
+
+			// Map columns based on detected format.
+			if ( $col_map !== null ) {
+				// TCGPlayer format — map by column name.
+				$product_name = trim( $cols[ $col_map['product name'] ?? -1 ] ?? '' );
+				$set_code     = trim( $cols[ $col_map['number'] ?? -1 ] ?? '' );
+				$rarity_raw   = trim( $cols[ $col_map['rarity'] ?? -1 ] ?? '' );
+				$condition    = trim( $cols[ $col_map['condition'] ?? -1 ] ?? '' );
+				$price_col    = $cols[ $col_map['tcg market price'] ?? $col_map['tcg low price'] ?? -1 ] ?? '';
+				$price_raw    = str_replace( ',', '.', trim( $price_col ) );
+				$price        = is_numeric( $price_raw ) ? floatval( $price_raw ) : 0;
+				$quantity     = absint( $cols[ $col_map['add to quantity'] ?? $col_map['total quantity'] ?? -1 ] ?? 0 );
+				$printing     = trim( $cols[ $col_map['printing'] ?? -1 ] ?? '' );
+				$language     = trim( $cols[ $col_map['language'] ?? -1 ] ?? '' );
+			} else {
+				// Simple format: Product Name | Number | Rarity | Condition | Price | Quantity | Printing | Language
+				$product_name = trim( $cols[0] ?? '' );
+				$set_code     = trim( $cols[1] ?? '' );
+				$rarity_raw   = trim( $cols[2] ?? '' );
+				$condition    = trim( $cols[3] ?? '' );
+				$price_raw    = str_replace( ',', '.', trim( $cols[4] ?? '' ) );
+				$price        = is_numeric( $price_raw ) ? floatval( $price_raw ) : 0;
+				$quantity     = absint( $cols[5] ?? 0 );
+				$printing     = trim( $cols[6] ?? '' );
+				$language     = trim( $cols[7] ?? '' );
 			}
 
 			if ( empty( $product_name ) && empty( $set_code ) ) {

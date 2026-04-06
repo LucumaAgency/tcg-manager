@@ -12,9 +12,10 @@ defined( 'ABSPATH' ) || exit;
 
 <div style="margin-bottom:16px;padding:14px;background:#f8f9fa;border-radius:6px;font-size:13px;line-height:1.6;color:#555;">
 	<strong><?php esc_html_e( 'Formato esperado (columnas):', 'tcg-manager' ); ?></strong><br>
+	<strong><?php esc_html_e( 'Formato simple:', 'tcg-manager' ); ?></strong><br>
 	<code>Product Name | Number | Rarity | Condition | Price | Quantity | Printing | Language</code><br><br>
-	<strong><?php esc_html_e( 'Ejemplo:', 'tcg-manager' ); ?></strong><br>
-	<code>Pre-Preparation of Rites, L26D-ENM11, Common, Near Mint, 5.00, 3, 1st Edition, English</code><br><br>
+	<strong><?php esc_html_e( 'Formato TCGPlayer:', 'tcg-manager' ); ?></strong><br>
+	<?php esc_html_e( 'Tambien acepta exportaciones de TCGPlayer. Se usan las columnas: Product Name, Number, Rarity, Condition, TCG Market Price, Add to Quantity, Printing.', 'tcg-manager' ); ?><br><br>
 	<?php esc_html_e( 'Si falta algun dato se crea como borrador, si esta completo se publica. "Short Print" se filtra de la rareza.', 'tcg-manager' ); ?>
 </div>
 
