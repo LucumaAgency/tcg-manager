@@ -48,8 +48,18 @@ $query = new WP_Query( $query_args );
 <?php if ( ! $query->have_posts() ) : ?>
 	<p><?php esc_html_e( 'No tienes productos aún.', 'tcg-manager' ); ?></p>
 <?php else : ?>
+<form method="post" id="tcg-bulk-delete-form">
+	<?php wp_nonce_field( 'tcg_bulk_delete', 'tcg_bulk_delete_nonce' ); ?>
+	<input type="hidden" name="tcg_action" value="bulk_delete">
+
+	<div id="tcg-bulk-bar" style="display:none;margin-bottom:12px;padding:10px 14px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:6px;display:none;align-items:center;gap:12px;">
+		<span id="tcg-bulk-count-text" style="font-size:14px;color:#721c24;"></span>
+		<button type="submit" class="tcg-btn tcg-btn-danger tcg-btn-sm"><?php esc_html_e( 'Eliminar seleccionados', 'tcg-manager' ); ?></button>
+	</div>
+
 <table class="tcg-table tcg-table-products">
 	<thead><tr>
+		<th style="width:30px;"><input type="checkbox" id="tcg-select-all"></th>
 		<th><?php esc_html_e( 'Imagen', 'tcg-manager' ); ?></th>
 		<th><?php esc_html_e( 'Nombre', 'tcg-manager' ); ?></th>
 		<th><?php esc_html_e( 'Precio', 'tcg-manager' ); ?></th>
@@ -64,6 +74,7 @@ $query = new WP_Query( $query_args );
 		$thumb = get_the_post_thumbnail_url( get_the_ID(), 'thumbnail' );
 		?>
 		<tr>
+			<td><input type="checkbox" name="product_ids[]" value="<?php echo esc_attr( get_the_ID() ); ?>" class="tcg-product-checkbox"></td>
 			<td data-label="<?php esc_attr_e( 'Imagen', 'tcg-manager' ); ?>"><?php if ( $thumb ) : ?><img src="<?php echo esc_url( $thumb ); ?>" alt="" class="tcg-product-thumb"><?php endif; ?></td>
 			<td data-label="<?php esc_attr_e( 'Nombre', 'tcg-manager' ); ?>"><?php echo esc_html( get_the_title() ); ?></td>
 			<td data-label="<?php esc_attr_e( 'Precio', 'tcg-manager' ); ?>"><?php echo wp_kses_post( $product->get_price_html() ); ?></td>
@@ -84,6 +95,7 @@ $query = new WP_Query( $query_args );
 	<?php endwhile; wp_reset_postdata(); ?>
 	</tbody>
 </table>
+</form>
 
 <?php if ( $query->max_num_pages > 1 ) : ?>
 	<div class="tcg-pagination">
@@ -261,5 +273,46 @@ wp_reset_postdata();
 		div.appendChild(document.createTextNode(str));
 		return div.innerHTML;
 	}
+})();
+
+// Bulk select & delete.
+(function() {
+	var selectAll  = document.getElementById('tcg-select-all');
+	var bulkBar    = document.getElementById('tcg-bulk-bar');
+	var countText  = document.getElementById('tcg-bulk-count-text');
+	var form       = document.getElementById('tcg-bulk-delete-form');
+	if (!selectAll || !form) return;
+
+	function getCheckboxes() {
+		return form.querySelectorAll('.tcg-product-checkbox');
+	}
+
+	function updateBar() {
+		var checked = form.querySelectorAll('.tcg-product-checkbox:checked').length;
+		if (checked > 0) {
+			bulkBar.style.display = 'flex';
+			countText.textContent = checked + ' producto(s) seleccionado(s)';
+		} else {
+			bulkBar.style.display = 'none';
+		}
+	}
+
+	selectAll.addEventListener('change', function() {
+		getCheckboxes().forEach(function(cb) { cb.checked = selectAll.checked; });
+		updateBar();
+	});
+
+	form.addEventListener('change', function(e) {
+		if (e.target.classList.contains('tcg-product-checkbox')) {
+			updateBar();
+		}
+	});
+
+	form.addEventListener('submit', function(e) {
+		var checked = form.querySelectorAll('.tcg-product-checkbox:checked').length;
+		if (!checked || !confirm('¿Eliminar ' + checked + ' producto(s)? Esta acción no se puede deshacer.')) {
+			e.preventDefault();
+		}
+	});
 })();
 </script>

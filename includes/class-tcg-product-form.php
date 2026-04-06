@@ -8,6 +8,7 @@ class TCG_Product_Form {
 		add_action( 'template_redirect', [ $this, 'process_bulk_add' ] );
 		add_action( 'template_redirect', [ $this, 'process_csv_import' ] );
 		add_action( 'template_redirect', [ $this, 'process_csv_export' ] );
+		add_action( 'template_redirect', [ $this, 'process_bulk_delete' ] );
 		add_action( 'template_redirect', [ $this, 'process_delete' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 	}
@@ -708,6 +709,47 @@ class TCG_Product_Form {
 	/**
 	 * Process product deletion.
 	 */
+	/**
+	 * Process bulk delete of products.
+	 */
+	public function process_bulk_delete() {
+		if ( ! isset( $_POST['tcg_action'] ) || $_POST['tcg_action'] !== 'bulk_delete' ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_POST['tcg_bulk_delete_nonce'] ?? '', 'tcg_bulk_delete' ) ) {
+			return;
+		}
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			return;
+		}
+
+		$product_ids = isset( $_POST['product_ids'] ) && is_array( $_POST['product_ids'] )
+			? array_map( 'absint', $_POST['product_ids'] )
+			: [];
+
+		if ( empty( $product_ids ) ) {
+			wp_safe_redirect( TCG_Dashboard::get_dashboard_url( 'products' ) );
+			exit;
+		}
+
+		$user_id = get_current_user_id();
+		$deleted = 0;
+
+		foreach ( $product_ids as $pid ) {
+			$post = get_post( $pid );
+			if ( $post && (int) $post->post_author === $user_id ) {
+				wp_trash_post( $pid );
+				$deleted++;
+			}
+		}
+
+		$msg = sprintf( __( '%d producto(s) eliminado(s).', 'tcg-manager' ), $deleted );
+		wp_safe_redirect( add_query_arg( 'tcg_msg', 'product_deleted', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		exit;
+	}
+
 	public function process_delete() {
 		if ( ! isset( $_GET['tcg_action'] ) || $_GET['tcg_action'] !== 'delete_product' ) {
 			return;
