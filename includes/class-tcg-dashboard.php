@@ -261,6 +261,67 @@ class TCG_Dashboard {
 		if ( isset( $_GET['tcg_error'] ) ) {
 			echo '<div class="tcg-alert tcg-alert-error">' . esc_html( sanitize_text_field( wp_unslash( $_GET['tcg_error'] ) ) ) . '</div>';
 		}
+
+		// CSV import report.
+		if ( isset( $_GET['tcg_csv_report'] ) ) {
+			$report = get_transient( 'tcg_csv_report_' . get_current_user_id() );
+			if ( $report ) {
+				delete_transient( 'tcg_csv_report_' . get_current_user_id() );
+				$this->render_csv_report( $report );
+			}
+		}
+	}
+
+	/**
+	 * Render CSV import report with expandable details.
+	 */
+	private function render_csv_report( $report ) {
+		$total = $report['created'] + $report['updated'] + $report['errors'];
+		$has_errors = $report['errors'] > 0;
+		$has_warns  = ! empty( $report['warn_names'] );
+		$alert_class = $has_errors ? 'tcg-alert-error' : ( $has_warns ? 'tcg-alert-error' : 'tcg-alert-success' );
+
+		echo '<div class="tcg-alert ' . $alert_class . '">';
+		echo '<strong>' . esc_html( sprintf(
+			__( 'Resultado: %d creado(s), %d actualizado(s), %d error(es) de %d total', 'tcg-manager' ),
+			$report['created'], $report['updated'], $report['errors'], $total
+		) ) . '</strong>';
+
+		$sections = [];
+		if ( ! empty( $report['created_names'] ) ) {
+			$sections[] = [ 'label' => __( 'Creados', 'tcg-manager' ) . ' (' . count( $report['created_names'] ) . ')', 'items' => $report['created_names'], 'color' => '#155724' ];
+		}
+		if ( ! empty( $report['updated_names'] ) ) {
+			$sections[] = [ 'label' => __( 'Actualizados', 'tcg-manager' ) . ' (' . count( $report['updated_names'] ) . ')', 'items' => $report['updated_names'], 'color' => '#004085' ];
+		}
+		if ( ! empty( $report['error_names'] ) ) {
+			$sections[] = [ 'label' => __( 'No encontradas', 'tcg-manager' ) . ' (' . count( $report['error_names'] ) . ')', 'items' => $report['error_names'], 'color' => '#721c24' ];
+		}
+		if ( ! empty( $report['warn_names'] ) ) {
+			$sections[] = [ 'label' => __( 'Advertencias', 'tcg-manager' ) . ' (' . count( $report['warn_names'] ) . ')', 'items' => $report['warn_names'], 'color' => '#856404' ];
+		}
+
+		if ( ! empty( $sections ) ) {
+			echo '<div style="margin-top:8px;">';
+			echo '<button type="button" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.textContent=this.nextElementSibling.style.display===\'none\'?\'' . esc_js( __( 'Ver detalles', 'tcg-manager' ) ) . '\':\'' . esc_js( __( 'Ocultar detalles', 'tcg-manager' ) ) . '\'" style="background:none;border:none;text-decoration:underline;cursor:pointer;padding:0;font-size:13px;color:inherit;">';
+			echo esc_html__( 'Ver detalles', 'tcg-manager' );
+			echo '</button>';
+			echo '<div style="display:none;margin-top:10px;">';
+
+			foreach ( $sections as $section ) {
+				echo '<div style="margin-bottom:10px;">';
+				echo '<strong style="color:' . esc_attr( $section['color'] ) . ';">' . esc_html( $section['label'] ) . '</strong>';
+				echo '<ul style="margin:4px 0 0 16px;padding:0;font-size:13px;list-style:disc;">';
+				foreach ( $section['items'] as $item ) {
+					echo '<li>' . esc_html( $item ) . '</li>';
+				}
+				echo '</ul></div>';
+			}
+
+			echo '</div></div>';
+		}
+
+		echo '</div>';
 	}
 
 	/**

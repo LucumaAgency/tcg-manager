@@ -340,13 +340,15 @@ class TCG_Product_Form {
 			exit;
 		}
 
-		$lines       = explode( "\n", $raw );
-		$user_id     = get_current_user_id();
-		$created     = 0;
-		$updated     = 0;
-		$errors      = 0;
-		$error_names = [];
-		$warn_names  = [];
+		$lines        = explode( "\n", $raw );
+		$user_id      = get_current_user_id();
+		$created      = 0;
+		$updated      = 0;
+		$errors       = 0;
+		$error_names  = [];
+		$warn_names   = [];
+		$created_names = [];
+		$updated_names = [];
 
 		// Detect separator from first line.
 		$first_line = trim( $lines[0] ?? '' );
@@ -475,6 +477,7 @@ class TCG_Product_Form {
 					update_post_meta( $product_id, '_price', $price );
 				}
 				$updated++;
+				$updated_names[] = $product_name . ( $set_code ? ' [' . $set_code . ']' : '' );
 			} else {
 				// Determine status: draft if missing any data, publish if complete.
 				$has_all_data = $price > 0 && $quantity > 0 && $condition && $printing && $rarity_raw;
@@ -511,6 +514,7 @@ class TCG_Product_Form {
 				$this->set_taxonomy_term( $product_id, $language, 'ygo_language' );
 
 				$created++;
+				$created_names[] = $product_name . ( $set_code ? ' [' . $set_code . ']' : '' );
 			}
 
 			do_action( 'tcg_manager_product_saved', $product_id, $card_id );
@@ -519,24 +523,19 @@ class TCG_Product_Form {
 		// Delete uploaded file.
 		@unlink( $_FILES['csv_file']['tmp_name'] );
 
-		$total_ok  = $created + $updated;
-		$warnings  = ! empty( $warn_names ) ? ' | ' . implode( '; ', array_slice( $warn_names, 0, 5 ) ) : '';
+		// Save detailed report in transient (5 min TTL).
+		$report = [
+			'created'       => $created,
+			'updated'       => $updated,
+			'errors'        => $errors,
+			'created_names' => $created_names,
+			'updated_names' => $updated_names,
+			'error_names'   => $error_names,
+			'warn_names'    => $warn_names,
+		];
+		set_transient( 'tcg_csv_report_' . $user_id, $report, 5 * MINUTE_IN_SECONDS );
 
-		if ( $total_ok > 0 && $errors > 0 ) {
-			$msg = sprintf( __( '%d creado(s), %d actualizado(s), %d error(es): %s', 'tcg-manager' ), $created, $updated, $errors, implode( ', ', array_slice( $error_names, 0, 5 ) ) ) . $warnings;
-			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
-		} elseif ( $total_ok > 0 && ! empty( $warn_names ) ) {
-			$msg = sprintf( __( '%d creado(s), %d actualizado(s). Advertencias: %s', 'tcg-manager' ), $created, $updated, implode( '; ', array_slice( $warn_names, 0, 5 ) ) );
-			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'products' ) ) );
-		} elseif ( $total_ok > 0 ) {
-			wp_safe_redirect( add_query_arg( 'tcg_msg', 'csv_imported', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
-		} else {
-			$msg = sprintf( __( 'No se creó ningún producto. %d error(es).', 'tcg-manager' ), $errors );
-			if ( ! empty( $error_names ) ) {
-				$msg .= ' ' . __( 'No encontradas:', 'tcg-manager' ) . ' ' . implode( ', ', array_slice( $error_names, 0, 10 ) );
-			}
-			wp_safe_redirect( add_query_arg( 'tcg_error', urlencode( $msg ), TCG_Dashboard::get_dashboard_url( 'import-csv' ) ) );
-		}
+		wp_safe_redirect( add_query_arg( 'tcg_csv_report', '1', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
 		exit;
 	}
 
