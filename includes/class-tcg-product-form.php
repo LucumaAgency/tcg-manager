@@ -466,18 +466,37 @@ class TCG_Product_Form {
 			$existing_id = $this->find_existing_vendor_product( $user_id, $card_id, $rarity, $condition, $printing, $language );
 
 			if ( $existing_id ) {
-				// Update existing product.
-				$product_id = $existing_id;
+				// Update existing product — track changes.
+				$product_id  = $existing_id;
+				$old_product = wc_get_product( $product_id );
+				$changes     = [];
+
 				if ( $quantity > 0 ) {
+					$old_stock = (int) ( $old_product ? $old_product->get_stock_quantity() : 0 );
+					if ( $old_stock !== $quantity ) {
+						$changes[] = 'stock: ' . $old_stock . ' → ' . $quantity;
+					}
 					update_post_meta( $product_id, '_stock', $quantity );
 					update_post_meta( $product_id, '_stock_status', 'instock' );
 				}
 				if ( $price > 0 ) {
+					$old_price = $old_product ? (float) $old_product->get_regular_price() : 0;
+					if ( $old_price !== $price ) {
+						$changes[] = 'precio: ' . wc_price( $old_price ) . ' → ' . wc_price( $price );
+					}
 					update_post_meta( $product_id, '_regular_price', $price );
 					update_post_meta( $product_id, '_price', $price );
 				}
+
+				$label = $product_name . ( $set_code ? ' [' . $set_code . ']' : '' );
+				if ( ! empty( $changes ) ) {
+					$label .= ' — ' . implode( ', ', $changes );
+				} else {
+					$label .= ' — sin cambios';
+				}
+
 				$updated++;
-				$updated_names[] = $product_name . ( $set_code ? ' [' . $set_code . ']' : '' );
+				$updated_names[] = $label;
 			} else {
 				// Determine status: draft if missing any data, publish if complete.
 				$has_all_data = $price > 0 && $quantity > 0 && $condition && $printing && $rarity_raw;
