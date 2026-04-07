@@ -150,6 +150,13 @@ class TCG_Product_Form {
 				<a href="<?php echo esc_url( TCG_Dashboard::get_dashboard_url( 'products' ) ); ?>" class="tcg-btn tcg-btn-secondary">
 					<?php esc_html_e( 'Cancelar', 'tcg-manager' ); ?>
 				</a>
+				<?php if ( $product_id ) : ?>
+					<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( [ 'tcg_action' => 'delete_product', 'product_id' => $product_id ] ), 'tcg_delete_' . $product_id ) ); ?>"
+					   class="tcg-btn tcg-btn-danger"
+					   onclick="return confirm('<?php echo esc_js( __( '¿Seguro que quieres eliminar este producto?', 'tcg-manager' ) ); ?>');">
+						<?php esc_html_e( 'Eliminar', 'tcg-manager' ); ?>
+					</a>
+				<?php endif; ?>
 			</div>
 		</form>
 		<?php
