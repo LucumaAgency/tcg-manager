@@ -23,6 +23,9 @@ $query = new WP_Query( $query_args );
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
 	<h2 style="margin:0;"><?php esc_html_e( 'Mis Productos', 'tcg-manager' ); ?></h2>
 	<div style="display:flex;gap:8px;flex-wrap:wrap;">
+		<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'tcg_action', 'clean_duplicates' ), 'tcg_clean_duplicates' ) ); ?>" class="tcg-btn tcg-btn-secondary" onclick="return confirm('<?php echo esc_js( __( 'Esto eliminara productos duplicados (misma carta, rareza, condicion, printing e idioma), dejando el mas reciente. ¿Continuar?', 'tcg-manager' ) ); ?>');">
+			<?php esc_html_e( 'Limpiar duplicados', 'tcg-manager' ); ?>
+		</a>
 		<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'tcg_action', 'export_csv' ), 'tcg_csv_export' ) ); ?>" class="tcg-btn tcg-btn-secondary">
 			<?php esc_html_e( 'Exportar CSV', 'tcg-manager' ); ?>
 		</a>

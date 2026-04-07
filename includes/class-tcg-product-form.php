@@ -8,6 +8,7 @@ class TCG_Product_Form {
 		add_action( 'template_redirect', [ $this, 'process_bulk_add' ] );
 		add_action( 'template_redirect', [ $this, 'process_csv_import' ] );
 		add_action( 'template_redirect', [ $this, 'process_csv_export' ] );
+		add_action( 'template_redirect', [ $this, 'process_clean_duplicates' ] );
 		add_action( 'template_redirect', [ $this, 'process_bulk_delete' ] );
 		add_action( 'template_redirect', [ $this, 'process_delete' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
@@ -764,6 +765,75 @@ class TCG_Product_Form {
 	/**
 	 * Process bulk delete of products.
 	 */
+	/**
+	 * Clean duplicate vendor products — keep newest, trash the rest.
+	 */
+	public function process_clean_duplicates() {
+		if ( ! isset( $_GET['tcg_action'] ) || $_GET['tcg_action'] !== 'clean_duplicates' ) {
+			return;
+		}
+
+		if ( ! wp_verify_nonce( $_GET['_wpnonce'] ?? '', 'tcg_clean_duplicates' ) ) {
+			return;
+		}
+
+		if ( ! TCG_Vendor_Role::is_vendor() ) {
+			return;
+		}
+
+		$vendor_id = get_current_user_id();
+
+		$query = new WP_Query( [
+			'post_type'      => 'product',
+			'post_status'    => [ 'publish', 'draft', 'pending' ],
+			'author'         => $vendor_id,
+			'posts_per_page' => -1,
+			'orderby'        => 'ID',
+			'order'          => 'DESC',
+			'meta_query'     => [ [ 'key' => '_linked_ygo_card', 'compare' => 'EXISTS' ] ],
+		] );
+
+		// Group products by signature: card_id + rarity + condition + printing + language.
+		$groups  = [];
+		foreach ( $query->posts as $post ) {
+			$card_id   = get_post_meta( $post->ID, '_linked_ygo_card', true );
+			$rarity    = wp_get_post_terms( $post->ID, 'ygo_rarity', [ 'fields' => 'names' ] );
+			$condition = wp_get_post_terms( $post->ID, 'ygo_condition', [ 'fields' => 'names' ] );
+			$printing  = wp_get_post_terms( $post->ID, 'ygo_printing', [ 'fields' => 'names' ] );
+			$language  = wp_get_post_terms( $post->ID, 'ygo_language', [ 'fields' => 'names' ] );
+
+			$key = $card_id . '|'
+				. ( ! is_wp_error( $rarity ) && ! empty( $rarity ) ? $rarity[0] : '' ) . '|'
+				. ( ! is_wp_error( $condition ) && ! empty( $condition ) ? $condition[0] : '' ) . '|'
+				. ( ! is_wp_error( $printing ) && ! empty( $printing ) ? $printing[0] : '' ) . '|'
+				. ( ! is_wp_error( $language ) && ! empty( $language ) ? $language[0] : '' );
+
+			$groups[ $key ][] = $post->ID;
+		}
+		wp_reset_postdata();
+
+		// For each group with duplicates, keep the first (newest ID), trash the rest.
+		$trashed = 0;
+		foreach ( $groups as $ids ) {
+			if ( count( $ids ) <= 1 ) {
+				continue;
+			}
+			// First is newest (ordered DESC). Trash the rest.
+			$duplicates = array_slice( $ids, 1 );
+			foreach ( $duplicates as $dup_id ) {
+				wp_trash_post( $dup_id );
+				$trashed++;
+			}
+		}
+
+		$msg = sprintf( __( '%d duplicado(s) eliminado(s).', 'tcg-manager' ), $trashed );
+		if ( $trashed === 0 ) {
+			$msg = __( 'No se encontraron duplicados.', 'tcg-manager' );
+		}
+		wp_safe_redirect( add_query_arg( 'tcg_msg', 'product_deleted', TCG_Dashboard::get_dashboard_url( 'products' ) ) );
+		exit;
+	}
+
 	public function process_bulk_delete() {
 		if ( ! isset( $_POST['tcg_action'] ) || $_POST['tcg_action'] !== 'bulk_delete' ) {
 			return;
