@@ -9,7 +9,8 @@ class TCG_Pickup_Store {
 	const CPT = 'tcg_pickup_store';
 
 	public function __construct() {
-		add_action( 'init', [ __CLASS__, 'register_cpt' ] );
+		// El constructor corre ya dentro de init (prio 25), así que registramos directo.
+		self::register_cpt();
 		add_action( 'add_meta_boxes', [ $this, 'add_metabox' ] );
 		add_action( 'save_post_' . self::CPT, [ $this, 'save_meta' ], 10, 2 );
 	}
