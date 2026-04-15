@@ -18,7 +18,7 @@ class TCG_Pickup {
 
 	public function __construct() {
 		// UI en checkout.
-		add_action( 'woocommerce_before_checkout_shipping_form', [ $this, 'render_selector' ] );
+		add_action( 'woocommerce_checkout_before_customer_details', [ $this, 'render_selector' ] );
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
 		// Sincronizar sesión con lo posteado al refrescar checkout.
