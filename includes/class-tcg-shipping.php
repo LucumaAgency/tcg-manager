@@ -38,12 +38,28 @@ class TCG_Shipping extends WC_Shipping_Method {
 
 		if ( ! $vendor_id ) return;
 
+		$vendor_name = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+
+		// Si el modo es recojo en tienda, emitir rate de recojo (costo 0) y omitir envío.
+		if ( class_exists( 'TCG_Pickup' ) && TCG_Pickup::get_mode() === 'pickup' ) {
+			$store = TCG_Pickup_Store::get( TCG_Pickup::get_store_id() );
+			$label = sprintf( __( 'Recojo en tienda — %s', 'tcg-manager' ), $vendor_name );
+			if ( $store ) {
+				$label .= ' (' . $store['name'] . ')';
+			}
+			$this->add_rate( [
+				'id'    => $this->get_rate_id() . ':pickup',
+				'label' => $label,
+				'cost'  => 0,
+			] );
+			return;
+		}
+
 		$destination_state = $package['destination']['state'] ?? '';
 		$is_lima           = $this->is_lima( $destination_state );
 
-		$vendor_name = TCG_Vendor_Profile::get_shop_name( $vendor_id );
-		$cost        = $this->get_vendor_shipping_cost( $vendor_id, $is_lima );
-		$days        = $this->get_vendor_shipping_days( $vendor_id, $is_lima );
+		$cost = $this->get_vendor_shipping_cost( $vendor_id, $is_lima );
+		$days = $this->get_vendor_shipping_days( $vendor_id, $is_lima );
 
 		$label = sprintf( __( 'Envío — %s', 'tcg-manager' ), $vendor_name );
 		if ( $days ) {

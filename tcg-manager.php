@@ -39,6 +39,8 @@ function tcg_manager_check_plugins() {
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-display.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-listings.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-shipping.php';
+	require_once TCG_MANAGER_PATH . 'includes/class-tcg-pickup-store.php';
+	require_once TCG_MANAGER_PATH . 'includes/class-tcg-pickup.php';
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-commissions.php';
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-vendors.php';
 
@@ -77,6 +79,8 @@ function tcg_manager_boot() {
 	new TCG_Ajax();
 	new TCG_Display();
 	new TCG_Listings();
+	new TCG_Pickup_Store();
+	new TCG_Pickup();
 
 	if ( is_admin() ) {
 		new TCG_Admin_Commissions();

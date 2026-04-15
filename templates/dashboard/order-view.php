@@ -74,6 +74,9 @@ if ( ! $order || (int) $order->get_meta( '_tcg_vendor_id' ) !== $vendor_id ) {
 
 	<!-- Shipping info -->
 	<h3><?php esc_html_e( 'Datos de envío', 'tcg-manager' ); ?></h3>
+	<?php if ( $order->get_meta( '_tcg_delivery_mode' ) === 'pickup' ) : ?>
+		<?php echo TCG_Pickup::render_block( $order, 'vendor' ); ?>
+	<?php else : ?>
 	<div class="tcg-order-address">
 		<p>
 			<strong><?php echo esc_html( $order->get_shipping_first_name() . ' ' . $order->get_shipping_last_name() ); ?></strong><br>
@@ -83,4 +86,5 @@ if ( ! $order || (int) $order->get_meta( '_tcg_vendor_id' ) !== $vendor_id ) {
 			<?php echo esc_html( WC()->countries->countries[ $order->get_shipping_country() ] ?? $order->get_shipping_country() ); ?>
 		</p>
 	</div>
+	<?php endif; ?>
 </div>
