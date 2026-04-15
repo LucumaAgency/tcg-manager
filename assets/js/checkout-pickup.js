@@ -1,9 +1,22 @@
 (function ($) {
 	'use strict';
 
+	// Selectores de los campos de dirección (tanto billing como shipping).
+	var ADDRESS_SELECTORS = [
+		'#billing_country_field',
+		'#billing_address_1_field',
+		'#billing_address_2_field',
+		'#billing_city_field',
+		'#billing_state_field',
+		'#billing_postcode_field',
+		'.woocommerce-shipping-fields',
+		'.shipping_address'
+	].join(',');
+
 	function renderDetails() {
 		var $sel = $('#tcg_pickup_store_id');
 		var $box = $('#tcg-pickup-details');
+		if (!$sel.length) return;
 		var $opt = $sel.find('option:selected');
 
 		if (!$sel.val()) {
@@ -25,16 +38,20 @@
 	}
 
 	function applyMode() {
-		var mode = $('#tcg_delivery_mode').val() || 'delivery';
-		var $pickup = $('#tcg-pickup-wrap');
-		var $ship   = $('.woocommerce-shipping-fields, .shipping_address');
+		var mode = $('#tcg_delivery_mode').val() || '';
+		var $pickup  = $('#tcg-pickup-wrap');
+		var $address = $(ADDRESS_SELECTORS);
 
 		if (mode === 'pickup') {
 			$pickup.show();
-			$ship.hide();
-		} else {
+			$address.hide();
+		} else if (mode === 'delivery') {
 			$pickup.hide();
-			$ship.show();
+			$address.show();
+		} else {
+			// Nada seleccionado → ocultar todo.
+			$pickup.hide();
+			$address.hide();
 		}
 	}
 

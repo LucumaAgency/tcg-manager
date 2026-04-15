@@ -46,9 +46,10 @@ class TCG_Pickup {
 	/* --------------------------- Helpers de sesión --------------------------- */
 
 	public static function get_mode() {
-		if ( ! function_exists( 'WC' ) || ! WC()->session ) return 'delivery';
+		if ( ! function_exists( 'WC' ) || ! WC()->session ) return '';
 		$mode = WC()->session->get( self::SESSION_MODE );
-		return $mode === 'pickup' ? 'pickup' : 'delivery';
+		if ( $mode === 'pickup' || $mode === 'delivery' ) return $mode;
+		return '';
 	}
 
 	public static function get_store_id() {
@@ -59,7 +60,8 @@ class TCG_Pickup {
 	public function update_session_from_post( $posted_raw ) {
 		parse_str( $posted_raw, $posted );
 
-		$mode = ( $posted['tcg_delivery_mode'] ?? 'delivery' ) === 'pickup' ? 'pickup' : 'delivery';
+		$raw  = $posted['tcg_delivery_mode'] ?? '';
+		$mode = in_array( $raw, [ 'delivery', 'pickup' ], true ) ? $raw : '';
 		WC()->session->set( self::SESSION_MODE, $mode );
 
 		$store_id = (int) ( $posted['tcg_pickup_store_id'] ?? 0 );
@@ -84,6 +86,7 @@ class TCG_Pickup {
 			<p class="form-row form-row-wide">
 				<label for="tcg_delivery_mode"><strong><?php esc_html_e( 'Modo de entrega', 'tcg-manager' ); ?></strong></label>
 				<select id="tcg_delivery_mode" name="tcg_delivery_mode" class="tcg-delivery-mode">
+					<option value=""><?php esc_html_e( '— Selecciona una opción —', 'tcg-manager' ); ?></option>
 					<option value="delivery" <?php selected( $mode, 'delivery' ); ?>><?php esc_html_e( 'Delivery a domicilio', 'tcg-manager' ); ?></option>
 					<?php if ( $has_stores ) : ?>
 						<option value="pickup" <?php selected( $mode, 'pickup' ); ?>><?php esc_html_e( 'Recojo en tienda', 'tcg-manager' ); ?></option>
@@ -130,21 +133,37 @@ class TCG_Pickup {
 	/* --------------------------- Required fields --------------------------- */
 
 	public function maybe_unrequire_shipping_fields( $fields ) {
-		if ( self::get_mode() !== 'pickup' ) return $fields;
+		$mode = self::get_mode();
+		// Solo para delivery mantenemos required; para pickup o sin selección, quitamos required.
+		if ( $mode === 'delivery' ) return $fields;
 
-		$keys = [ 'shipping_address_1', 'shipping_city', 'shipping_state', 'shipping_postcode', 'shipping_country', 'shipping_first_name', 'shipping_last_name' ];
-		foreach ( $keys as $k ) {
+		$shipping_keys = [ 'shipping_address_1', 'shipping_city', 'shipping_state', 'shipping_postcode', 'shipping_country', 'shipping_first_name', 'shipping_last_name' ];
+		foreach ( $shipping_keys as $k ) {
 			if ( isset( $fields['shipping'][ $k ] ) ) {
 				$fields['shipping'][ $k ]['required'] = false;
 			}
 		}
+
+		$billing_addr_keys = [ 'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state', 'billing_postcode', 'billing_country' ];
+		foreach ( $billing_addr_keys as $k ) {
+			if ( isset( $fields['billing'][ $k ] ) ) {
+				$fields['billing'][ $k ]['required'] = false;
+			}
+		}
+
 		return $fields;
 	}
 
 	/* --------------------------- Validación --------------------------- */
 
 	public function validate() {
-		$mode = isset( $_POST['tcg_delivery_mode'] ) && $_POST['tcg_delivery_mode'] === 'pickup' ? 'pickup' : 'delivery';
+		$mode = $_POST['tcg_delivery_mode'] ?? '';
+
+		if ( ! in_array( $mode, [ 'delivery', 'pickup' ], true ) ) {
+			wc_add_notice( __( 'Debes seleccionar un modo de entrega.', 'tcg-manager' ), 'error' );
+			return;
+		}
+
 		if ( $mode !== 'pickup' ) return;
 
 		$store_id = (int) ( $_POST['tcg_pickup_store_id'] ?? 0 );
