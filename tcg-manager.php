@@ -41,6 +41,9 @@ function tcg_manager_check_plugins() {
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-shipping.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-pickup-store.php';
 	require_once TCG_MANAGER_PATH . 'includes/class-tcg-pickup.php';
+
+	// Emails custom.
+	add_filter( 'woocommerce_email_classes', 'tcg_manager_register_emails' );
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-commissions.php';
 	require_once TCG_MANAGER_PATH . 'admin/class-tcg-admin-vendors.php';
 
@@ -54,6 +57,15 @@ function tcg_manager_check_plugins() {
 	}
 }
 add_action( 'plugins_loaded', 'tcg_manager_check_plugins', 20 );
+
+/**
+ * Registra los emails custom del plugin en WooCommerce.
+ */
+function tcg_manager_register_emails( $emails ) {
+	require_once TCG_MANAGER_PATH . 'includes/emails/class-tcg-email-vendor-new-order.php';
+	$emails['TCG_Email_Vendor_New_Order'] = new TCG_Email_Vendor_New_Order();
+	return $emails;
+}
 
 /**
  * Boot after init — ygo_card CPT must exist.
