@@ -490,7 +490,9 @@ class TCG_Product_Form {
 				if ( $price > 0 ) {
 					$old_price = $old_product ? (float) $old_product->get_regular_price() : 0;
 					if ( $old_price !== $price ) {
-						$changes[] = 'precio: ' . wc_price( $old_price ) . ' → ' . wc_price( $price );
+						$fmt_old   = html_entity_decode( wp_strip_all_tags( wc_price( $old_price ) ) );
+						$fmt_new   = html_entity_decode( wp_strip_all_tags( wc_price( $price ) ) );
+						$changes[] = 'precio: ' . $fmt_old . ' → ' . $fmt_new;
 					}
 					update_post_meta( $product_id, '_regular_price', $price );
 					update_post_meta( $product_id, '_price', $price );
