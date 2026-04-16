@@ -11,9 +11,18 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-$shop_name = class_exists( 'TCG_Vendor_Profile' )
-	? TCG_Vendor_Profile::get_shop_name( $vendor->ID )
-	: $vendor->display_name;
+$vendor       = $vendor       ?? null;
+$order        = $order        ?? null;
+$vendor_items = $vendor_items ?? [];
+$vendor_total = $vendor_total ?? 0;
+
+if ( $vendor && ! empty( $vendor->ID ) ) {
+	$shop_name = class_exists( 'TCG_Vendor_Profile' )
+		? TCG_Vendor_Profile::get_shop_name( $vendor->ID )
+		: $vendor->display_name;
+} else {
+	$shop_name = __( 'Vendedor', 'tcg-manager' );
+}
 
 $dashboard_url = class_exists( 'TCG_Dashboard' )
 	? TCG_Dashboard::get_dashboard_url( 'orders' )
@@ -24,12 +33,14 @@ echo wp_strip_all_tags( $email_heading ) . "\n\n";
 printf( __( 'Hola %s,', 'tcg-manager' ), $shop_name );
 echo "\n\n";
 
-printf( __( 'Nuevo pedido #%s (%s)', 'tcg-manager' ),
-	$order->get_order_number(),
-	wc_format_datetime( $order->get_date_created() )
-);
-echo "\n";
-echo str_repeat( '-', 40 ) . "\n";
+if ( $order ) {
+	printf( __( 'Nuevo pedido #%s (%s)', 'tcg-manager' ),
+		$order->get_order_number(),
+		wc_format_datetime( $order->get_date_created() )
+	);
+	echo "\n";
+	echo str_repeat( '-', 40 ) . "\n";
+}
 
 foreach ( $vendor_items as $item ) {
 	echo '- ' . $item->get_name()
@@ -39,6 +50,8 @@ foreach ( $vendor_items as $item ) {
 }
 echo "\n";
 echo __( 'Tu total a despachar: ', 'tcg-manager' ) . html_entity_decode( wp_strip_all_tags( wc_price( $vendor_total ) ) ) . "\n\n";
+
+if ( $order ) {
 
 echo str_repeat( '=', 40 ) . "\n";
 echo __( 'DATOS DE ENTREGA', 'tcg-manager' ) . "\n";
@@ -71,6 +84,8 @@ echo trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_nam
 if ( $order->get_billing_email() ) echo $order->get_billing_email() . "\n";
 if ( $order->get_billing_phone() ) echo $order->get_billing_phone() . "\n";
 echo "\n";
+
+} // end if ( $order )
 
 echo __( 'Ver pedido:', 'tcg-manager' ) . ' ' . $dashboard_url . "\n\n";
 

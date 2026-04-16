@@ -12,9 +12,19 @@
  */
 defined( 'ABSPATH' ) || exit;
 
-$shop_name = class_exists( 'TCG_Vendor_Profile' )
-	? TCG_Vendor_Profile::get_shop_name( $vendor->ID )
-	: $vendor->display_name;
+// Valores por defecto (vista previa desde WC admin puede llamar sin datos reales).
+$vendor       = $vendor       ?? null;
+$order        = $order        ?? null;
+$vendor_items = $vendor_items ?? [];
+$vendor_total = $vendor_total ?? 0;
+
+if ( $vendor && ! empty( $vendor->ID ) ) {
+	$shop_name = class_exists( 'TCG_Vendor_Profile' )
+		? TCG_Vendor_Profile::get_shop_name( $vendor->ID )
+		: $vendor->display_name;
+} else {
+	$shop_name = __( 'Vendedor', 'tcg-manager' );
+}
 
 $dashboard_url = class_exists( 'TCG_Dashboard' )
 	? TCG_Dashboard::get_dashboard_url( 'orders' )
@@ -26,9 +36,11 @@ do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 
 <p><?php esc_html_e( 'Has recibido un nuevo pedido. Estos son los productos que debes despachar:', 'tcg-manager' ); ?></p>
 
+<?php if ( $order ) : ?>
 <h2><?php printf( esc_html__( 'Pedido #%s', 'tcg-manager' ), esc_html( $order->get_order_number() ) ); ?>
 	<span style="font-weight:normal;color:#777;">(<?php echo esc_html( wc_format_datetime( $order->get_date_created() ) ); ?>)</span>
 </h2>
+<?php endif; ?>
 
 <div style="margin-bottom:40px;">
 <table class="td" cellspacing="0" cellpadding="6" border="1" style="color:#636363;border:1px solid #e5e5e5;vertical-align:middle;width:100%;font-family:'Helvetica Neue',Helvetica,Roboto,Arial,sans-serif;">
@@ -57,6 +69,7 @@ do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 </table>
 </div>
 
+<?php if ( $order ) : ?>
 <h2><?php esc_html_e( 'Datos de entrega', 'tcg-manager' ); ?></h2>
 <?php if ( $order->get_meta( '_tcg_delivery_mode' ) === 'pickup' && class_exists( 'TCG_Pickup' ) ) : ?>
 	<?php echo TCG_Pickup::render_block( $order, 'email-vendor' ); ?>
@@ -75,6 +88,7 @@ do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 	<?php if ( $order->get_billing_email() ) : ?><?php echo esc_html( $order->get_billing_email() ); ?><br><?php endif; ?>
 	<?php if ( $order->get_billing_phone() ) : ?><?php echo esc_html( $order->get_billing_phone() ); ?><?php endif; ?>
 </p>
+<?php endif; ?>
 
 <p style="text-align:center;margin:30px 0;">
 	<a href="<?php echo esc_url( $dashboard_url ); ?>" style="background:#2271b1;color:#fff;padding:12px 24px;text-decoration:none;border-radius:4px;display:inline-block;">
