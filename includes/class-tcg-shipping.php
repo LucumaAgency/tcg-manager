@@ -125,6 +125,11 @@ add_filter( 'woocommerce_cart_shipping_packages', function( $packages ) {
 	// Only split if there's a default package with items.
 	if ( empty( $packages ) ) return $packages;
 
+	// Add delivery mode + pickup store to packages so WC cache hash changes
+	// when the customer switches between delivery and pickup.
+	$delivery_mode = class_exists( 'TCG_Pickup' ) ? TCG_Pickup::get_mode() : '';
+	$pickup_store  = class_exists( 'TCG_Pickup' ) ? TCG_Pickup::get_store_id() : 0;
+
 	// Collect all items from all existing packages.
 	$all_items = [];
 	$base_package = $packages[0];
@@ -147,8 +152,10 @@ add_filter( 'woocommerce_cart_shipping_packages', function( $packages ) {
 	// If single vendor, no need to split.
 	if ( count( $vendor_items ) <= 1 ) {
 		$vendor_id = array_key_first( $vendor_items );
-		$packages[0]['tcg_vendor_id'] = $vendor_id;
-		$packages[0]['tcg_vendor_name'] = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$packages[0]['tcg_vendor_id']     = $vendor_id;
+		$packages[0]['tcg_vendor_name']   = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$packages[0]['tcg_delivery_mode'] = $delivery_mode;
+		$packages[0]['tcg_pickup_store']  = $pickup_store;
 		return $packages;
 	}
 
@@ -156,10 +163,12 @@ add_filter( 'woocommerce_cart_shipping_packages', function( $packages ) {
 	$new_packages = [];
 	foreach ( $vendor_items as $vendor_id => $items ) {
 		$pkg = $base_package;
-		$pkg['contents']        = $items;
-		$pkg['contents_cost']   = array_sum( wp_list_pluck( $items, 'line_total' ) );
-		$pkg['tcg_vendor_id']   = $vendor_id;
-		$pkg['tcg_vendor_name'] = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$pkg['contents']          = $items;
+		$pkg['contents_cost']     = array_sum( wp_list_pluck( $items, 'line_total' ) );
+		$pkg['tcg_vendor_id']     = $vendor_id;
+		$pkg['tcg_vendor_name']   = TCG_Vendor_Profile::get_shop_name( $vendor_id );
+		$pkg['tcg_delivery_mode'] = $delivery_mode;
+		$pkg['tcg_pickup_store']  = $pickup_store;
 		$new_packages[] = $pkg;
 	}
 
